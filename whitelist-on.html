@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<title>WhiteList Mode is ON| Telegraph-Image</title>
+<meta charset="UTF-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta http-equiv="X-UA-Compatible" content="IE=Edge">
+<meta name="robots" content="noindex, nofollow">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="stylesheet" href="/assets/theme.css">
+<style>
+  body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--sp-3); }
+  .notice-card {
+    max-width: 520px; width: 100%;
+    background: var(--c-white);
+    border: var(--bd); border-radius: var(--radius);
+    box-shadow: var(--shadow-lg);
+    padding: var(--sp-4) var(--sp-3);
+    text-align: center;
+    animation: pop-in var(--dur-mid) var(--ease-pop) both;
+  }
+  .sign {
+    width: 84px; height: 84px; margin: 0 auto var(--sp-3);
+    display: flex; align-items: center; justify-content: center;
+    background: var(--c-yellow);
+    border: var(--bd); border-radius: 50%;
+    box-shadow: var(--shadow);
+  }
+  .sign .icon { width: 40px; height: 40px; stroke-width: 2.2; }
+  .notice-card h1 { font-size: 24px; margin-bottom: var(--sp-2); }
+  .notice-card .msg { font-size: 15px; line-height: 1.9; color: var(--c-ink-soft); }
+  .notice-card .powered { margin-top: var(--sp-3); font-size: 13px; font-weight: 500; color: var(--c-ink-soft); }
+  .notice-card .powered a { font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+  .notice-card .powered a:hover { background: var(--c-yellow); }
+</style>
+</head>
+<body>
+  <div class="notice-card">
+    <div class="sign" aria-hidden="true">
+      <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16.5h.01"/></svg>
+    </div>
+    <h1>白名单审核中</h1>
+    <div class="msg">
+      抱歉，当前已开启白名单模式，上传的图片需要审核通过后才能展示，请等待审核通过后再进行访问。
+      <br>
+      Sorry, the whitelist mode is currently enabled, the uploaded images need to be audited before they can be displayed, please wait for the audit to be passed before visiting.
+    </div>
+    <div class="powered">Powered By: <a href="https://github.com/cf-pages/Telegraph-Image">Telegraph-Image</a></div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="stylesheet" href="/assets/theme.css">
+<title>瀑布流 | Telegraph-Image</title>
+<style>
+  .topbar .brand-mini {
+    display: inline-flex; align-items: center; gap: 10px; margin-right: auto;
+    font-family: var(--font-head); font-weight: 700; font-size: 17px;
+  }
+  .topbar .brand-mini .logo-badge {
+    width: 36px; height: 36px; flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--c-teal);
+    border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  }
+  .topbar .brand-mini .logo-badge .icon { width: 20px; height: 20px; }
+  .topbar nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: var(--sp-3) var(--sp-2); }
+
+  /* ---- 瀑布流 ---- */
+  .box { position: relative; width: 100%; }
+  .wf-item {
+    position: absolute;
+    width: 220px;
+    padding: 6px;
+    background: var(--c-white);
+    border: var(--bd);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    cursor: zoom-in;
+    transition: top .3s var(--ease-pop), left .3s var(--ease-pop),
+                transform var(--dur-fast) var(--ease-pop), box-shadow var(--dur-fast) var(--ease-pop);
+    animation: pop-in var(--dur-mid) var(--ease-pop) both;
+  }
+  .wf-item:hover {
+    transform: translate(-3px, -3px) rotate(-.6deg);
+    box-shadow: 7px 7px 0 var(--c-ink);
+    z-index: 2;
+  }
+  .wf-item img { display: block; width: 100%; height: auto; border-radius: var(--radius-sm); }
+
+  .empty-hint {
+    text-align: center; padding: var(--sp-6); color: var(--c-ink-soft);
+    font-weight: 500;
+  }
+
+  .more-zone { display: flex; justify-content: center; padding: var(--sp-3) 0 var(--sp-4); }
+
+  /* ---- 大图遮罩 ---- */
+  #bigimg {
+    display: none;
+    position: fixed; inset: 0; z-index: 200;
+    align-items: center; justify-content: center;
+    background: rgba(20, 20, 20, .72);
+    cursor: zoom-out;
+    padding: var(--sp-3);
+  }
+  #bigimg.open { display: flex; }
+  #bigimg img {
+    max-width: 92vw; max-height: 88vh;
+    border: var(--bd); border-radius: var(--radius);
+    box-shadow: 8px 8px 0 rgba(0, 0, 0, .45);
+    background: var(--c-white);
+  }
+
+  @media (max-width: 760px) {
+    .topbar .brand-mini span.txt { display: none; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand-mini" href="/admin.html">
+    <span class="logo-badge" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M4 4h5v9H4zM10.5 4h5v13h-5zM17 4h3v7h-3zM4 15h5v5H4zM17 13h3v7h-3z"/></svg></span>
+    <span class="txt">瀑布流</span>
+  </a>
+  <nav>
+    <a class="btn btn-sm" href="/"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg><span>首页</span></a>
+    <a class="btn btn-sm btn-primary" href="./admin.html"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 6.5h12M8.5 12h12M8.5 17.5h12M3.75 6.5h.01M3.75 12h.01M3.75 17.5h.01"/></svg><span>表格视图</span></a>
+    <a class="btn btn-sm btn-secondary" href="./admin-imgtc.html"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/></svg><span>网格视图</span></a>
+  </nav>
+</header>
+
+<main class="wrap">
+  <div class="box" id="box"></div>
+  <div class="empty-hint" id="empty-hint" hidden>暂无图片</div>
+  <div class="more-zone">
+    <button type="button" class="btn btn-primary" id="loadMore"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5v12m0 0l-4.75-4.75M12 16.5l4.75-4.75M4 20h16"/></svg><span>加载更多</span></button>
+  </div>
+</main>
+
+<!-- 放大遮罩层 -->
+<div id="bigimg" role="dialog" aria-label="图片预览"></div>
+<div class="toast-zone"><div id="toast" class="toast" role="status" aria-live="polite"></div></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var box = document.getElementById('box');
+  var loadMoreBtn = document.getElementById('loadMore');
+  var bigimg = document.getElementById('bigimg');
+  var emptyHint = document.getElementById('empty-hint');
+  var toast = document.getElementById('toast');
+  var toastTimer = null;
+
+  var cursor = null;
+  var loading = false;
+  var loadedAny = false;
+
+  var ITEM_W = 220;   // 卡片宽（与 .wf-item width 一致）
+  var GAP = 16;       // 卡片间距
+
+  // ---- 数据加载 ----
+  function loadMore() {
+    if (loading) return;
+    loading = true;
+    loadMoreBtn.disabled = true;
+
+    var url = cursor
+      ? './api/manage/list?cursor=' + encodeURIComponent(cursor)
+      : './api/manage/list?limit=100';
+
+    fetch(url, { method: 'GET', credentials: 'include' })
+      .then(function (r) {
+        if (r.status === 401) {
+          window.location.href = './api/manage/login';
+          throw new Error('unauthorized');
+        }
+        return r.json();
+      })
+      .then(function (data) {
+        cursor = data.list_complete ? null : data.cursor;
+        var images = data.keys || [];
+        var added = 0;
+        images.forEach(function (item) {
+          if (item.name.indexOf('.mp4') > 0) return;   // 视频不进瀑布流
+          appendItem(item.name);
+          added++;
+        });
+        loadedAny = loadedAny || added > 0;
+        emptyHint.hidden = loadedAny;
+        if (!cursor) loadMoreBtn.style.display = 'none';
+        relayout();
+      })
+      .catch(function (err) {
+        if (err && err.message !== 'unauthorized') showToast('同步失败，请检查网络');
+      })
+      .then(function () {
+        loading = false;
+        loadMoreBtn.disabled = false;
+      });
+  }
+
+  function appendItem(name) {
+    var card = document.createElement('div');
+    card.className = 'wf-item';
+    var img = document.createElement('img');
+    img.loading = 'lazy';
+    img.src = '/file/' + name;
+    img.alt = name;
+    img.addEventListener('load', scheduleRelayout);
+    img.addEventListener('error', function () {
+      card.remove();
+      scheduleRelayout();
+    });
+    card.addEventListener('click', function () { showBigImg('/file/' + name); });
+    card.appendChild(img);
+    box.appendChild(card);
+  }
+
+  // ---- 瀑布流布局（最短列优先） ----
+  function relayout() {
+    var items = box.querySelectorAll('.wf-item');
+    if (!items.length) { box.style.height = '0'; return; }
+
+    var colWidth = ITEM_W + GAP;
+    var containerWidth = box.clientWidth;
+    var column = Math.max(1, Math.floor((containerWidth + GAP) / colWidth));
+    var offsetX = Math.max(0, (containerWidth - column * colWidth + GAP) / 2);
+
+    var heightArr = [];
+    for (var i = 0; i < column; i++) heightArr[i] = 0;
+
+    items.forEach(function (item) {
+      var minHeight = Math.min.apply(null, heightArr);
+      var minIndex = heightArr.indexOf(minHeight);
+      item.style.top = minHeight + 'px';
+      item.style.left = (offsetX + minIndex * colWidth) + 'px';
+      heightArr[minIndex] += item.offsetHeight + GAP;
+    });
+
+    box.style.height = Math.max.apply(null, heightArr) + 'px';
+  }
+
+  var relayoutTimer = null;
+  function scheduleRelayout() {
+    clearTimeout(relayoutTimer);
+    relayoutTimer = setTimeout(relayout, 80);
+  }
+
+  var resizeTimer = null;
+  window.addEventListener('resize', function () {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(relayout, 120);
+  });
+
+  // ---- 大图预览 ----
+  function showBigImg(url) {
+    bigimg.innerHTML = '';
+    var img = document.createElement('img');
+    img.src = url;
+    img.alt = '预览大图';
+    bigimg.appendChild(img);
+    bigimg.classList.add('open');
+  }
+  bigimg.addEventListener('click', function () {
+    bigimg.classList.remove('open');
+    bigimg.innerHTML = '';
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') {
+      bigimg.classList.remove('open');
+      bigimg.innerHTML = '';
+    }
+  });
+
+  // ---- 提示 ----
+  function showToast(message) {
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 1800);
+  }
+
+  loadMoreBtn.addEventListener('click', loadMore);
+  loadMore();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+node_modules/
+.wrangler/
+data/
+data-broken/
+test/e2e/output/
+*.log
+wrangler-dev.log
+.DS_Store
+.codebuddy/

@@ -1,0 +1,505 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="stylesheet" href="/assets/theme.css">
+<title>Dashboard | Telegraph-Image</title>
+<style>
+  /* ---- page frame ---- */
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: var(--sp-3); }
+  .topbar .brand-mini {
+    display: inline-flex; align-items: center; gap: 10px; margin-right: auto;
+    font-family: var(--font-head); font-weight: 700; font-size: 17px;
+  }
+  .topbar .brand-mini .logo-badge {
+    width: 36px; height: 36px; flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--c-blue); color: var(--c-white);
+    border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  }
+  .topbar .brand-mini .logo-badge .icon { width: 20px; height: 20px; }
+  .topbar nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+  /* ---- stats bento ---- */
+  .stats {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2);
+    margin-bottom: var(--sp-3);
+  }
+  .stat {
+    position: relative; overflow: hidden;
+    padding: var(--sp-2) var(--sp-3);
+    border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow);
+  }
+  .stat .num {
+    font-family: var(--font-head); font-weight: 700;
+    font-size: clamp(28px, 4vw, 44px); line-height: 1.1; letter-spacing: -.02em;
+  }
+  .stat .lbl { font-size: 13px; font-weight: 700; margin-top: 2px; }
+  .stat-total { background: var(--c-yellow); }
+  .stat-white { background: var(--c-teal); }
+  .stat-block { background: var(--c-coral); }
+
+  /* ---- toolbar ---- */
+  .toolbar {
+    display: flex; gap: var(--sp-2); align-items: center; margin-bottom: var(--sp-3);
+  }
+  .toolbar .search-box { position: relative; flex: 1; max-width: 420px; }
+  .toolbar .search-box .icon {
+    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+    width: 18px; height: 18px; color: var(--c-ink-soft); pointer-events: none;
+  }
+  .toolbar .search-box .input { padding-left: 40px; }
+
+  /* ---- table ---- */
+  .cell-name { font-family: var(--font-mono); font-size: 13px; word-break: break-all; min-width: 160px; }
+  .cell-name .fname { font-weight: 700; }
+  .cell-name .fmeta { color: var(--c-ink-soft); font-size: 12px; margin-top: 2px; }
+  .cell-preview { width: 130px; }
+  .cell-preview img, .cell-preview video {
+    width: 120px; height: 80px; object-fit: cover;
+    border: var(--bd-thin); border-radius: var(--radius-sm);
+    background: var(--c-paper); display: block; cursor: zoom-in;
+  }
+  .cell-preview video { cursor: default; }
+  .cell-tags { min-width: 140px; }
+  .cell-tags .badge { margin: 2px 4px 2px 0; }
+  .cell-tags .sid { font-family: var(--font-mono); font-size: 11px; color: var(--c-ink-soft); }
+  .cell-actions { white-space: nowrap; text-align: right; }
+  .cell-actions .btn { margin-left: 6px; }
+  .empty-row td { text-align: center; padding: var(--sp-4); color: var(--c-ink-soft); font-weight: 500; }
+
+  .more-zone { display: flex; justify-content: center; margin-top: var(--sp-3); }
+
+  /* ---- lightbox ---- */
+  .lightbox {
+    position: fixed; inset: 0; z-index: 200; display: none;
+    align-items: center; justify-content: center; padding: var(--sp-3);
+    background: rgba(20, 20, 20, .72);
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img {
+    max-width: 92vw; max-height: 88vh;
+    border: var(--bd); border-radius: var(--radius); box-shadow: 8px 8px 0 rgba(0,0,0,.45);
+    background: var(--c-white);
+  }
+
+  @media (max-width: 760px) {
+    .stats { grid-template-columns: 1fr; }
+    .cell-preview img, .cell-preview video { width: 88px; height: 60px; }
+    .topbar .brand-mini span.txt { display: none; }
+  }
+</style>
+</head>
+<body>
+<header class="topbar">
+  <a class="brand-mini" href="/admin.html">
+    <span class="logo-badge" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/></svg></span>
+    <span class="txt">Dashboard</span>
+  </a>
+  <nav>
+    <a class="btn btn-sm" href="/"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg><span>首页</span></a>
+    <a class="btn btn-sm btn-primary" href="./admin-imgtc.html"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/></svg><span>网格视图</span></a>
+    <a class="btn btn-sm btn-secondary" href="./admin-waterfall.html"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h5v9H4zM10.5 4h5v13h-5zM17 4h3v7h-3zM4 15h5v5H4zM10.5 19h5v1.5h-5zM17 13h3v7h-3z"/></svg><span>瀑布流</span></a>
+    <button type="button" class="btn btn-sm btn-danger" id="logout-btn" hidden><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg><span>退出登录</span></button>
+  </nav>
+</header>
+
+<main class="wrap">
+  <section class="stats" aria-label="统计">
+    <div class="stat stat-total"><div class="num" id="stat-total">0</div><div class="lbl">记录总数（已加载）</div></div>
+    <div class="stat stat-white"><div class="num" id="stat-white">0</div><div class="lbl">白名单</div></div>
+    <div class="stat stat-block"><div class="num" id="stat-block">0</div><div class="lbl">黑名单</div></div>
+  </section>
+
+  <div class="toolbar">
+    <div class="search-box">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+      <input class="input" id="search-input" type="search" placeholder="输入关键字搜索（按文件名前缀）" aria-label="搜索记录">
+    </div>
+    <button type="button" class="btn btn-icon" id="refresh-btn" title="刷新列表" aria-label="刷新列表"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg></button>
+  </div>
+
+  <div class="table-wrap">
+    <table class="table">
+      <thead>
+        <tr>
+          <th>name</th>
+          <th style="text-align:center">preview</th>
+          <th>data</th>
+          <th style="text-align:right">操作</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+        <tr class="empty-row"><td colspan="4">加载中…</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="more-zone">
+    <button type="button" class="btn btn-primary" id="load-more" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5v12m0 0l-4.75-4.75M12 16.5l4.75-4.75M4 20h16"/></svg><span>加载更多</span></button>
+  </div>
+</main>
+
+<div class="lightbox" id="lightbox" role="dialog" aria-label="图片预览">
+  <img id="lightbox-img" alt="预览大图">
+</div>
+<div class="toast-zone"><div id="toast" class="toast" role="status" aria-live="polite"></div></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var COPY_ICON = '<svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11.5" height="11.5" rx="2.2"/><path d="M5.5 15.5H5a1.5 1.5 0 0 1-1.5-1.5V5A1.5 1.5 0 0 1 5 3.5h9A1.5 1.5 0 0 1 15.5 5v.5"/></svg>';
+  var WHITE_ICON = '<svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.5l8 3.5v5.5c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg>';
+  var BLOCK_ICON = '<svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.8 5.8l12.4 12.4"/></svg>';
+  var TRASH_ICON = '<svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.75 6.75h16.5M9 6.75V5A1.5 1.5 0 0 1 10.5 3.5h3A1.5 1.5 0 0 1 15 5v1.75M5.75 6.75l.8 12.1A2 2 0 0 0 8.55 20.7h6.9a2 2 0 0 0 2-1.85l.8-12.1"/></svg>';
+
+  var tbody = document.getElementById('tbody');
+  var loadMoreBtn = document.getElementById('load-more');
+  var searchInput = document.getElementById('search-input');
+  var toast = document.getElementById('toast');
+  var toastTimer = null;
+
+  var rows = [];            // [{ name, metadata }]
+  var nextCursor = null;
+  var search = '';
+  var searchTimer = null;
+  var loading = false;
+
+  var OPTS = { method: 'GET', redirect: 'follow', credentials: 'include' };
+
+  // ---- auth check ----
+  fetch('./api/manage/check', OPTS)
+    .then(function (r) { return r.text(); })
+    .then(function (result) {
+      if (result === 'true') {
+        document.getElementById('logout-btn').hidden = false;
+      } else if (result === 'Not using basic auth.') {
+        // no auth configured — stay
+      } else {
+        window.location.href = './api/manage/login';
+      }
+    })
+    .catch(function () { alert('An error occurred while synchronizing data with the server, please check the network connection'); });
+
+  document.getElementById('logout-btn').addEventListener('click', function () {
+    window.location.href = './api/manage/logout';
+  });
+
+  // ---- list loading ----
+  function listUrl() {
+    var base = './api/manage/list?limit=100';
+    if (search) base += '&prefix=' + encodeURIComponent(search);
+    return base;
+  }
+
+  function loadList(reset) {
+    if (loading) return;
+    loading = true;
+    if (reset) {
+      rows = [];
+      nextCursor = null;
+      renderTable(true);
+    }
+    var url = listUrl();
+    if (nextCursor) url += '&cursor=' + encodeURIComponent(nextCursor);
+
+    fetch(url, OPTS)
+      .then(function (r) {
+        if (r.status === 401) {
+          alert('请先登录');
+          window.location.href = './api/manage/login';
+          throw new Error('unauthorized');
+        }
+        return r.json();
+      })
+      .then(function (result) {
+        rows = rows.concat(result.keys || []);
+        nextCursor = result.list_complete ? null : result.cursor;
+        renderTable(false);
+      })
+      .catch(function (err) {
+        if (err && err.message !== 'unauthorized') {
+          showToast('同步失败，请检查网络', 'error');
+        }
+      })
+      .then(function () { loading = false; });
+  }
+
+  // ---- rendering ----
+  function renderStats() {
+    var white = 0, block = 0;
+    rows.forEach(function (row) {
+      var md = row.metadata;
+      if (md && typeof md === 'object') {
+        if (md.ListType === 'White') white++;
+        if (md.ListType === 'Block') block++;
+      }
+    });
+    document.getElementById('stat-total').textContent = rows.length;
+    document.getElementById('stat-white').textContent = white;
+    document.getElementById('stat-block').textContent = block;
+  }
+
+  function renderTable(isLoading) {
+    renderStats();
+    loadMoreBtn.hidden = !nextCursor;
+
+    if (isLoading) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="4">加载中…</td></tr>';
+      return;
+    }
+    if (!rows.length) {
+      tbody.innerHTML = '<tr class="empty-row"><td colspan="4">暂无记录</td></tr>';
+      return;
+    }
+
+    tbody.textContent = '';
+    rows.forEach(function (row, index) {
+      tbody.appendChild(buildRow(row, index));
+    });
+  }
+
+  function buildRow(row, index) {
+    var tr = document.createElement('tr');
+
+    // name
+    var tdName = document.createElement('td');
+    tdName.className = 'cell-name';
+    var md = row.metadata && typeof row.metadata === 'object' ? row.metadata : null;
+    var fname = document.createElement('div');
+    fname.className = 'fname';
+    fname.textContent = row.name;
+    tdName.appendChild(fname);
+    if (md) {
+      var fmeta = document.createElement('div');
+      fmeta.className = 'fmeta';
+      var bits = [];
+      if (md.fileName && md.fileName !== row.name) bits.push(md.fileName);
+      if (md.fileSize) bits.push(formatSize(md.fileSize));
+      if (md.TimeStamp) bits.push(formatTime(md.TimeStamp));
+      fmeta.textContent = bits.join(' · ');
+      tdName.appendChild(fmeta);
+    }
+    tr.appendChild(tdName);
+
+    // preview
+    var tdPreview = document.createElement('td');
+    tdPreview.className = 'cell-preview';
+    tdPreview.style.textAlign = 'center';
+    if (row.name.indexOf('.mp4') > 0) {
+      var video = document.createElement('video');
+      video.controls = true;
+      video.preload = 'none';
+      var source = document.createElement('source');
+      source.src = '/file/' + row.name;
+      source.type = 'video/mp4';
+      video.appendChild(source);
+      tdPreview.appendChild(video);
+    } else {
+      var img = document.createElement('img');
+      img.loading = 'lazy';
+      img.src = '/file/' + row.name;
+      img.alt = row.name;
+      img.onerror = function () { img.style.visibility = 'hidden'; };
+      img.addEventListener('click', function () { openLightbox('/file/' + row.name); });
+      tdPreview.appendChild(img);
+    }
+    tr.appendChild(tdPreview);
+
+    // metadata badges
+    var tdTags = document.createElement('td');
+    tdTags.className = 'cell-tags';
+    renderTags(tdTags, row);
+    tr.appendChild(tdTags);
+
+    // actions
+    var tdActions = document.createElement('td');
+    tdActions.className = 'cell-actions';
+    tdActions.appendChild(actionBtn('复制地址', COPY_ICON, '', function () { doCopy(row); }));
+    tdActions.appendChild(actionBtn('白名单', WHITE_ICON, 'btn-secondary', function () { doWhite(row, tr, tdTags); }));
+    tdActions.appendChild(actionBtn('黑名单', BLOCK_ICON, '', function () { doBlock(row, tr, tdTags); }));
+    tdActions.appendChild(actionBtn('删除记录', TRASH_ICON, 'btn-danger', function () { doDelete(row, tr); }));
+    tr.appendChild(tdActions);
+
+    return tr;
+  }
+
+  function renderTags(td, row) {
+    td.textContent = '';
+    var md = row.metadata;
+    if (md && typeof md === 'object') {
+      var listBadge = document.createElement('span');
+      if (md.ListType === 'White') { listBadge.className = 'badge badge-teal'; listBadge.textContent = '白名单'; }
+      else if (md.ListType === 'Block') { listBadge.className = 'badge badge-coral'; listBadge.textContent = '黑名单'; }
+      else { listBadge.className = 'badge'; listBadge.textContent = 'None'; }
+      td.appendChild(listBadge);
+      if (md.Label && md.Label !== 'None') {
+        var nsfw = document.createElement('span');
+        nsfw.className = 'badge badge-pink';
+        nsfw.textContent = md.Label;
+        td.appendChild(nsfw);
+      }
+      if (md.shortId) {
+        var sid = document.createElement('div');
+        sid.className = 'sid';
+        sid.textContent = 'shortId: ' + md.shortId;
+        td.appendChild(sid);
+      }
+    } else if (typeof md === 'string' && md) {
+      var txt = document.createElement('span');
+      txt.className = 'badge badge-yellow';
+      txt.textContent = md;
+      td.appendChild(txt);
+    } else {
+      var none = document.createElement('span');
+      none.className = 'badge';
+      none.textContent = 'None';
+      td.appendChild(none);
+    }
+  }
+
+  function actionBtn(label, icon, variant, onClick) {
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'btn btn-sm btn-icon' + (variant ? ' ' + variant : '');
+    btn.title = label;
+    btn.setAttribute('aria-label', label);
+    btn.innerHTML = icon;
+    btn.addEventListener('click', onClick);
+    return btn;
+  }
+
+  // ---- actions ----
+  function findRow(key) {
+    for (var i = 0; i < rows.length; i++) if (rows[i].name === key) return rows[i];
+    return null;
+  }
+
+  function doCopy(row) {
+    var md = row.metadata && typeof row.metadata === 'object' ? row.metadata : null;
+    var shortId = md && md.shortId;
+    var text = location.origin + '/file/' + (shortId || row.name);
+    copyText(text, function () { showToast('复制文件链接成功~'); });
+  }
+
+  function doWhite(row, tr, tdTags) {
+    if (!confirm('确认加入白名单吗?')) return;
+    fetch('./api/manage/white/' + row.name, OPTS)
+      .then(function (r) { return r.text(); })
+      .then(function (result) {
+        var target = findRow(row.name);
+        if (target) target.metadata = result;
+        renderTags(tdTags, row);
+        renderStats();
+        showToast('已加入白名单');
+      })
+      .catch(function () { alert('An error occurred while synchronizing data with the server, please check the network connection'); });
+  }
+
+  function doBlock(row, tr, tdTags) {
+    if (!confirm('确认加入黑名单吗?')) return;
+    fetch('./api/manage/block/' + row.name, OPTS)
+      .then(function (r) { return r.text(); })
+      .then(function (result) {
+        var target = findRow(row.name);
+        if (target) target.metadata = result;
+        renderTags(tdTags, row);
+        renderStats();
+        showToast('已加入黑名单');
+      })
+      .catch(function () { alert('An error occurred while synchronizing data with the server, please check the network connection'); });
+  }
+
+  function doDelete(row, tr) {
+    if (!confirm('确认从后台列表删除该记录吗？这不会删除源文件；如需禁止访问请加入黑名单。')) return;
+    fetch('./api/manage/delete/' + row.name, OPTS)
+      .then(function (r) { return r.text(); })
+      .then(function () {
+        rows = rows.filter(function (item) { return item.name !== row.name; });
+        tr.remove();
+        renderStats();
+        if (!rows.length) renderTable(false);
+        showToast('记录已删除');
+      })
+      .catch(function () { alert('An error occurred while synchronizing data with the server, please check the network connection'); });
+  }
+
+  // ---- search (300ms debounce, server-side prefix) ----
+  searchInput.addEventListener('input', function () {
+    clearTimeout(searchTimer);
+    searchTimer = setTimeout(function () {
+      search = searchInput.value.trim();
+      loadList(true);
+    }, 300);
+  });
+
+  document.getElementById('refresh-btn').addEventListener('click', function () {
+    loadList(true);
+  });
+
+  loadMoreBtn.addEventListener('click', function () { loadList(false); });
+
+  // ---- lightbox ----
+  var lightbox = document.getElementById('lightbox');
+  var lightboxImg = document.getElementById('lightbox-img');
+  function openLightbox(src) {
+    lightboxImg.src = src;
+    lightbox.classList.add('open');
+  }
+  lightbox.addEventListener('click', function () { lightbox.classList.remove('open'); lightboxImg.src = ''; });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape') lightbox.classList.remove('open');
+  });
+
+  // ---- helpers ----
+  function copyText(text, done) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { legacyCopy(text); done(); });
+    } else {
+      legacyCopy(text);
+      done();
+    }
+  }
+
+  function legacyCopy(text) {
+    var textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  }
+
+  function showToast(message, type) {
+    toast.textContent = message;
+    toast.className = 'toast show' + (type === 'error' ? ' toast-error' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 1800);
+  }
+
+  function formatSize(bytes) {
+    if (!bytes || bytes < 0) return '';
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+  }
+
+  function formatTime(ts) {
+    var d = new Date(Number(ts));
+    if (isNaN(d.getTime())) return '';
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+  }
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
+
+  // ---- init ----
+  loadList(true);
+})();
+</script>
+</body>
+</html>
