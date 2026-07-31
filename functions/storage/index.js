@@ -1,6 +1,10 @@
 import { telegramProvider } from './telegram.js';
 import { r2Provider } from './r2.js';
 
+// Re-exported so callers (e.g. upload.js) can pick R2 directly when routing
+// large files, without reaching into the provider module.
+export { r2Provider };
+
 // Storage provider contract:
 //   key                                       - tag persisted in KV metadata for provenance
 //   validateConfig(env)                       - throws when required bindings/vars are missing
