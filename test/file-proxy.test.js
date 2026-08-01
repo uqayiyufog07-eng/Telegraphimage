@@ -151,22 +151,22 @@ describe('file proxy function', function () {
     const onRequest = await getOnRequest();
 
     fetchMock = installFetchMock(async input => {
-      assert.strictEqual(String(input), 'https://telegra.ph//file/archive.zip');
-      return new Response('zip-body', {
+      assert.strictEqual(String(input), 'https://telegra.ph//file/archive.bin');
+      return new Response('bin-body', {
         status: 200,
-        headers: { 'Content-Type': 'application/zip' },
+        headers: { 'Content-Type': 'application/octet-stream' },
       });
     });
 
     const res = await onRequest(makeContext({
-      request: new Request('https://example.com/file/archive.zip'),
+      request: new Request('https://example.com/file/archive.bin'),
       env: {},
-      params: { id: 'archive.zip' },
+      params: { id: 'archive.bin' },
     }));
 
     assert.strictEqual(res.status, 200);
     assert.strictEqual(res.headers.get('Content-Disposition'), null);
-    assert.strictEqual(await res.text(), 'zip-body');
+    assert.strictEqual(await res.text(), 'bin-body');
   });
 
   it('redirects blocked files to the blocked image page', async function () {

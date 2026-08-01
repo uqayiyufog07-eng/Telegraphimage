@@ -409,9 +409,12 @@ function formatTime(iso) {
 
 function fileIconClass(name, contentType) {
   const ext = (name.split('.').pop() || '').toLowerCase();
-  if (contentType?.startsWith('image/') || ['png','jpg','jpeg','gif','webp','avif','bmp','svg','ico'].includes(ext)) return 'img';
-  if (contentType?.startsWith('video/') || ['mp4','m4v','mov','webm','ogv','mkv','avi'].includes(ext)) return 'video';
-  if (contentType?.startsWith('audio/') || ['mp3','m4a','ogg','wav','flac','aac'].includes(ext)) return 'audio';
+  if (contentType?.startsWith('image/') || ['png','jpg','jpeg','gif','webp','avif','bmp','svg','ico','apng','tiff','tif','heic','heif','jxl'].includes(ext)) return 'img';
+  if (contentType?.startsWith('video/') || ['mp4','m4v','mov','webm','ogv','mkv','avi','ts','3gp'].includes(ext)) return 'video';
+  if (contentType?.startsWith('audio/') || ['mp3','m4a','ogg','wav','flac','aac','opus','wma','aiff','aif','mka'].includes(ext)) return 'audio';
+  if (['docx','xlsx','ods','pptx','epub','zip','pdf'].includes(ext)) return 'doc';
+  if (['txt','md','json','js','mjs','css','html','htm','xml','log','csv','yaml','yml','toml','ini','conf','py','java','c','cpp','cc','h','hpp','go','rs','sh','bash','zsh','sql','graphql','dockerfile','makefile','ics','vcf'].includes(ext)) return 'text';
+  if (['geojson','gpx','kml','kmz'].includes(ext)) return 'map';
   return 'doc';
 }
 
@@ -420,16 +423,27 @@ function iconSvg(type) {
   if (type === 'img') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
   if (type === 'video') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>';
   if (type === 'audio') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+  if (type === 'text') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/></svg>';
+  if (type === 'map') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6"/><line x1="8" y1="2" x2="8" y2="18"/><line x1="16" y1="6" x2="16" y2="22"/></svg>';
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
 }
 
 function isPreviewable(name, contentType) {
   const ext = (name.split('.').pop() || '').toLowerCase();
-  if (contentType?.startsWith('image/') || ['png','jpg','jpeg','gif','webp','avif','bmp','svg','ico','apng','tiff','tif'].includes(ext)) return 'image';
+  if (contentType?.startsWith('image/') || ['png','jpg','jpeg','gif','webp','avif','bmp','svg','ico','apng','tiff','tif','heic','heif','jxl'].includes(ext)) return 'image';
   if (contentType?.startsWith('video/') || ['mp4','m4v','mov','webm','ogv'].includes(ext)) return 'video';
-  if (contentType?.startsWith('audio/') || ['mp3','m4a','ogg','wav','flac','aac','opus'].includes(ext)) return 'audio';
+  if (contentType?.startsWith('audio/') || ['mp3','m4a','ogg','wav','flac','aac','opus','wma','aiff','aif','mka'].includes(ext)) return 'audio';
   if (ext === 'pdf' || contentType === 'application/pdf') return 'pdf';
-  if (['txt','md','json','js','mjs','css','html','htm','xml','log','csv','yaml','yml','toml','ini','conf','py','java','c','cpp','cc','h','hpp','go','rs','sh','bash','zsh','sql','graphql','dockerfile','makefile'].includes(ext)) return 'text';
+  if (['txt','md','json','js','mjs','css','html','htm','xml','log','csv','yaml','yml','toml','ini','conf','py','java','c','cpp','cc','h','hpp','go','rs','sh','bash','zsh','sql','graphql','dockerfile','makefile','ics','vcf'].includes(ext)) return 'text';
+  if (ext === 'docx') return 'docx';
+  if (['xlsx','ods','csv'].includes(ext) && ext !== 'csv' || ext === 'xlsx' || ext === 'ods') return 'spreadsheet';
+  if (ext === 'pptx') return 'pptx';
+  if (ext === 'epub') return 'epub';
+  if (ext === 'zip') return 'zip';
+  if (['geojson','gpx','kml'].includes(ext)) return 'map';
+  if (ext === 'kmz') return 'map';
+  if (ext === 'ics') return 'text';
+  if (ext === 'vcf') return 'text';
   return null;
 }
 
@@ -842,6 +856,38 @@ function downloadFolder(path) {
   a.remove();
 }
 
+// 动态加载 JS 库（按需加载，只在首次预览时请求）
+function loadScript(src) {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector('script[data-src="' + src + '"]')) return resolve();
+    const s = document.createElement('script');
+    s.src = src; s.dataset.src = src;
+    s.onload = resolve; s.onerror = reject;
+    document.head.appendChild(s);
+  });
+}
+
+// Markdown → HTML 渲染
+function renderMarkdown(text) {
+  // 轻量 Markdown 渲染（无需外部库，支持标题/粗体/斜体/代码/链接/列表/引用）
+  let html = escapeHtml(text);
+  html = html.replace(/^### (.+)$/gm, '<h3>$1</h3>');
+  html = html.replace(/^## (.+)$/gm, '<h2>$1</h2>');
+  html = html.replace(/^# (.+)$/gm, '<h1>$1</h1>');
+  html = html.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+  html = html.replace(/\*(.+?)\*/g, '<em>$1</em>');
+  html = html.replace(/`([^`]+)`/g, '<code>$1</code>');
+  html = html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank">$1</a>');
+  html = html.replace(/^> (.+)$/gm, '<blockquote>$1</blockquote>');
+  html = html.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
+  html = html.replace(/(<li>.+<\/li>\n?)+/g, m => '<ul>' + m + '</ul>');
+  html = html.replace(/```([\s\S]+?)```/g, (m, code) => '<pre><code>' + code + '</code></pre>');
+  html = html.replace(/\n\n/g, '</p><p>');
+  html = '<p>' + html + '</p>';
+  html = html.replace(/<p><\/p>/g, '');
+  return html;
+}
+
 async function showPreview(path, name, contentType) {
   const previewType = isPreviewable(name, contentType);
   const body = $('#preview-body');
@@ -867,13 +913,215 @@ async function showPreview(path, name, contentType) {
     try {
       const res = await fetch(fileUrl);
       const text = await res.text();
-      body.innerHTML = `<pre style="text-align:left;color:#f0f0f0;padding:16px;font-family:var(--font-mono);font-size:13px;white-space:pre-wrap;word-break:break-all;max-height:80vh;overflow:auto">${escapeHtml(text)}</pre>`;
+      const ext = (name.split('.').pop()||'').toLowerCase();
+      if (ext === 'md') {
+        // Markdown 富文本渲染
+        body.innerHTML = `<div style="text-align:left;padding:20px;max-height:80vh;overflow:auto;line-height:1.7;color:#f0f0f0">
+          <style>.md-viewer h1{font-size:1.5em;margin:.5em 0}.md-viewer h2{font-size:1.3em;margin:.5em 0}.md-viewer h3{font-size:1.1em;margin:.5em 0}.md-viewer code{background:rgba(255,255,255,.1);padding:2px 6px;border-radius:3px;font-family:var(--font-mono)}.md-viewer pre{background:rgba(0,0,0,.3);padding:12px;border-radius:6px;overflow:auto}.md-viewer blockquote{border-left:3px solid var(--c-yellow);padding-left:12px;margin:8px 0;color:#aaa}.md-viewer ul{padding-left:20px}.md-viewer a{color:#6cb6ff}</style>
+          <div class="md-viewer">${renderMarkdown(text)}</div></div>`;
+      } else if (ext === 'vcf') {
+        // vCard 联系人卡片
+        body.innerHTML = renderVcf(text);
+      } else if (ext === 'ics') {
+        // iCalendar 日程
+        body.innerHTML = renderIcs(text);
+      } else {
+        body.innerHTML = `<pre style="text-align:left;color:#f0f0f0;padding:16px;font-family:var(--font-mono);font-size:13px;white-space:pre-wrap;word-break:break-all;max-height:80vh;overflow:auto">${escapeHtml(text)}</pre>`;
+      }
     } catch {
       body.innerHTML = '<div class="unsupported">文本加载失败</div>';
+    }
+  } else if (previewType === 'docx') {
+    // Word 文档预览（mammoth.js）
+    body.innerHTML = '<div class="unsupported"><div class="loading">正在加载 Word 文档预览组件...</div></div>';
+    try {
+      await loadScript('https://cdn.jsdelivr.net/npm/mammoth@1.6.0/mammoth.browser.min.js');
+      const res = await fetch(fileUrl);
+      const arrayBuffer = await res.arrayBuffer();
+      const result = await window.mammoth.convertToHtml({ arrayBuffer });
+      body.innerHTML = `<div style="text-align:left;padding:20px;max-height:80vh;overflow:auto;line-height:1.8;color:#f0f0f0">${result.value || '<p>（文档为空）</p>'}</div>`;
+    } catch (e) {
+      body.innerHTML = `<div class="unsupported"><div>Word 文档预览加载失败</div><div style="margin-top:12px"><a class="btn btn-primary btn-sm" href="${fileUrl}" download>下载文件</a></div></div>`;
+    }
+  } else if (previewType === 'spreadsheet') {
+    // Excel 电子表格预览（SheetJS）
+    body.innerHTML = '<div class="unsupported"><div class="loading">正在加载电子表格预览组件...</div></div>';
+    try {
+      await loadScript('https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js');
+      const res = await fetch(fileUrl);
+      const arrayBuffer = await res.arrayBuffer();
+      const wb = window.XLSX.read(arrayBuffer, { type: 'array' });
+      let html = '<div style="text-align:left;max-height:80vh;overflow:auto;color:#f0f0f0">';
+      for (const sheetName of wb.SheetNames) {
+        const sheet = wb.Sheets[sheetName];
+        const tableHtml = window.XLSX.utils.sheet_to_html(sheet, { editable: false });
+        html += `<h3 style="margin:12px 0 6px;font-size:14px">Sheet: ${escapeHtml(sheetName)}</h3>`;
+        html += `<table style="border-collapse:collapse;font-size:12px;font-family:var(--font-mono);margin-bottom:16px">${tableHtml.replace(/<table>/,'').replace(/<\/table>/,'')}</table>`;
+      }
+      html += '</div>';
+      body.innerHTML = html;
+      // 给 td 加样式
+      body.querySelectorAll('td').forEach(td => { td.style.cssText = 'border:1px solid #444;padding:4px 8px'; });
+      body.querySelectorAll('th').forEach(th => { th.style.cssText = 'border:1px solid #666;padding:4px 8px;background:rgba(255,255,255,.08)'; });
+    } catch (e) {
+      body.innerHTML = `<div class="unsupported"><div>电子表格预览加载失败</div><div style="margin-top:12px"><a class="btn btn-primary btn-sm" href="${fileUrl}" download>下载文件</a></div></div>`;
+    }
+  } else if (previewType === 'pptx') {
+    // PPT 幻灯片预览（提取文本内容）
+    body.innerHTML = '<div class="unsupported"><div class="loading">正在加载 PPT 预览组件...</div></div>';
+    try {
+      await loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
+      const res = await fetch(fileUrl);
+      const arrayBuffer = await res.arrayBuffer();
+      const zip = await window.JSZip.loadAsync(arrayBuffer);
+      let slidesHtml = '<div style="text-align:left;max-height:80vh;overflow:auto;color:#f0f0f0">';
+      const slideFiles = Object.keys(zip.files).filter(f => /^ppt\/slides\/slide\d+\.xml$/.test(f)).sort((a,b) => {
+        const na = parseInt(a.match(/slide(\d+)/)[1]); const nb = parseInt(b.match(/slide(\d+)/)[1]); return na - nb;
+      });
+      for (const sf of slideFiles) {
+        const content = await zip.files[sf].async('string');
+        const texts = content.match(/<a:t>([^<]*)<\/a:t>/g) || [];
+        const slideNum = sf.match(/slide(\d+)/)[1];
+        slidesHtml += `<div style="background:rgba(255,255,255,.05);border:1px solid #444;border-radius:8px;padding:16px;margin-bottom:12px"><div style="font-size:12px;color:#888;margin-bottom:8px">Slide ${slideNum}</div>`;
+        for (const t of texts) {
+          slidesHtml += `<div style="margin:4px 0">${escapeHtml(t.replace(/<\/?a:t>/g,''))}</div>`;
+        }
+        slidesHtml += '</div>';
+      }
+      slidesHtml += '</div>';
+      body.innerHTML = slidesHtml || '<div class="unsupported">未找到幻灯片内容</div>';
+    } catch (e) {
+      body.innerHTML = `<div class="unsupported"><div>PPT 预览加载失败</div><div style="margin-top:12px"><a class="btn btn-primary btn-sm" href="${fileUrl}" download>下载文件</a></div></div>`;
+    }
+  } else if (previewType === 'epub') {
+    // EPUB 电子书预览（epub.js）
+    body.innerHTML = '<div class="unsupported"><div class="loading">正在加载电子书阅读器...</div></div>';
+    try {
+      await loadScript('https://cdn.jsdelivr.net/npm/epubjs@0.3.93/dist/epub.min.js');
+      await loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
+      const res = await fetch(fileUrl);
+      const arrayBuffer = await res.arrayBuffer();
+      const book = window.ePub(arrayBuffer);
+      const rendition = book.renderTo(body, { width: '100%', height: '70vh', spread: 'none' });
+      rendition.display();
+      // 翻页按钮
+      const nav = document.createElement('div');
+      nav.style.cssText = 'display:flex;gap:10px;justify-content:center;margin-top:10px';
+      nav.innerHTML = `<button class="btn btn-sm" id="epub-prev">上一页</button><button class="btn btn-sm" id="epub-next">下一页</button>`;
+      body.appendChild(nav);
+      $('#epub-prev').onclick = () => rendition.prev();
+      $('#epub-next').onclick = () => rendition.next();
+    } catch (e) {
+      body.innerHTML = `<div class="unsupported"><div>EPUB 预览加载失败</div><div style="margin-top:12px"><a class="btn btn-primary btn-sm" href="${fileUrl}" download>下载文件</a></div></div>`;
+    }
+  } else if (previewType === 'zip') {
+    // ZIP 压缩包内容列表（JSZip）
+    body.innerHTML = '<div class="unsupported"><div class="loading">正在解析压缩包...</div></div>';
+    try {
+      await loadScript('https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js');
+      const res = await fetch(fileUrl);
+      const arrayBuffer = await res.arrayBuffer();
+      const zip = await window.JSZip.loadAsync(arrayBuffer);
+      let html = '<div style="text-align:left;max-height:80vh;overflow:auto;color:#f0f0f0;font-family:var(--font-mono);font-size:13px">';
+      const files = Object.keys(zip.files).sort();
+      for (const fname of files) {
+        const file = zip.files[fname];
+        const icon = file.dir ? '📁' : '📄';
+        const size = file.dir ? '' : ' <span style="color:#888">(' + formatSize(file._data?.uncompressedSize || 0) + ')</span>';
+        html += `<div style="padding:3px 8px;border-bottom:1px solid rgba(255,255,255,.05)">${icon} ${escapeHtml(fname)}${size}</div>`;
+      }
+      html += `</div><div style="margin-top:8px;color:#888;font-size:12px;text-align:center">共 ${files.length} 个条目</div>`;
+      body.innerHTML = html;
+    } catch (e) {
+      body.innerHTML = `<div class="unsupported"><div>压缩包解析失败</div><div style="margin-top:12px"><a class="btn btn-primary btn-sm" href="${fileUrl}" download>下载文件</a></div></div>`;
+    }
+  } else if (previewType === 'map') {
+    // 地理文件预览（Leaflet）
+    body.innerHTML = '<div class="unsupported"><div class="loading">正在加载地图组件...</div></div>';
+    try {
+      await loadScript('https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js');
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+      const res = await fetch(fileUrl);
+      const text = await res.text();
+      const ext = (name.split('.').pop()||'').toLowerCase();
+
+      body.innerHTML = '<div id="map-preview" style="width:100%;height:70vh;border-radius:8px"></div>';
+      const map = window.L.map('map-preview').setView([0, 0], 2);
+      window.L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+
+      if (ext === 'geojson') {
+        const geo = JSON.parse(text);
+        window.L.geoJSON(geo).addTo(map);
+        try { map.fitBounds(window.L.geoJSON(geo).getBounds(), { padding: [20,20] }); } catch {}
+      } else if (ext === 'gpx' || ext === 'kml') {
+        // GPX/KML → 用 omnivore 或简易解析
+        await loadScript('https://cdn.jsdelivr.net/npm/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js');
+        const layer = window.omnivore[ext](fileUrl);
+        layer.addTo(map);
+        layer.on('ready', () => { try { map.fitBounds(layer.getBounds(), { padding: [20,20] }); } catch {} });
+      } else if (ext === 'kmz') {
+        await loadScript('https://cdn.jsdelivr.net/npm/leaflet-omnivore@0.3.4/leaflet-omnivore.min.js');
+        const layer = window.omnivore.kml(fileUrl);
+        layer.addTo(map);
+        layer.on('ready', () => { try { map.fitBounds(layer.getBounds(), { padding: [20,20] }); } catch {} });
+      }
+    } catch (e) {
+      body.innerHTML = `<div class="unsupported"><div>地图预览加载失败</div><div style="margin-top:12px"><a class="btn btn-primary btn-sm" href="${fileUrl}" download>下载文件</a></div></div>`;
     }
   }
 
   showModal('#modal-preview');
+}
+
+// vCard 联系人渲染
+function renderVcf(text) {
+  const lines = text.split(/\r?\n/);
+  let name = '', email = '', tel = '', org = '';
+  for (const line of lines) {
+    if (line.startsWith('FN:')) name = line.slice(3);
+    else if (line.startsWith('EMAIL') || line.startsWith('EMAIL:')) email = (line.split(':')[1]||'');
+    else if (line.startsWith('TEL') || line.startsWith('TEL:')) tel = (line.split(':')[1]||'');
+    else if (line.startsWith('ORG:')) org = line.slice(4);
+  }
+  return `<div style="text-align:left;padding:24px;max-width:400px;margin:0 auto;color:#f0f0f0">
+    <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+      <div style="width:60px;height:60px;border-radius:50%;background:var(--c-yellow);display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:700;color:#333">${(name||'?')[0].toUpperCase()}</div>
+      <div><div style="font-size:20px;font-weight:700">${escapeHtml(name)}</div>${org ? '<div style="color:#888">'+escapeHtml(org)+'</div>' : ''}</div>
+    </div>
+    ${email ? '<div style="padding:8px 0;border-bottom:1px solid #333"><b>邮箱:</b> '+escapeHtml(email)+'</div>' : ''}
+    ${tel ? '<div style="padding:8px 0;border-bottom:1px solid #333"><b>电话:</b> '+escapeHtml(tel)+'</div>' : ''}
+  </div>`;
+}
+
+// iCalendar 日程渲染
+function renderIcs(text) {
+  const events = [];
+  let cur = null;
+  for (const line of text.split(/\r?\n/)) {
+    if (line.startsWith('BEGIN:VEVENT')) cur = {};
+    else if (line.startsWith('SUMMARY:')) cur && (cur.title = line.slice(8));
+    else if (line.startsWith('DTSTART')) cur && (cur.start = line.split(':')[1] || '');
+    else if (line.startsWith('DTEND')) cur && (cur.end = line.split(':')[1] || '');
+    else if (line.startsWith('LOCATION:')) cur && (cur.location = line.slice(9));
+    else if (line.startsWith('DESCRIPTION:')) cur && (cur.desc = line.slice(12));
+    else if (line.startsWith('END:VEVENT') && cur) { events.push(cur); cur = null; }
+  }
+  if (!events.length) return '<div class="unsupported">未找到日程事件</div>';
+  let html = '<div style="text-align:left;padding:20px;max-height:80vh;overflow:auto;color:#f0f0f0">';
+  for (const ev of events) {
+    html += `<div style="background:rgba(255,255,255,.05);border:1px solid #444;border-radius:8px;padding:14px;margin-bottom:12px">
+      <div style="font-size:16px;font-weight:700;margin-bottom:6px">${escapeHtml(ev.title||'（无标题）')}</div>
+      ${ev.start ? '<div style="color:#aaa;font-size:13px">开始: '+escapeHtml(ev.start)+'</div>' : ''}
+      ${ev.end ? '<div style="color:#aaa;font-size:13px">结束: '+escapeHtml(ev.end)+'</div>' : ''}
+      ${ev.location ? '<div style="color:#aaa;font-size:13px">地点: '+escapeHtml(ev.location)+'</div>' : ''}
+      ${ev.desc ? '<div style="color:#888;font-size:13px;margin-top:6px">'+escapeHtml(ev.desc)+'</div>' : ''}
+    </div>`;
+  }
+  html += '</div>';
+  return html;
 }
 
 function showShareModal(path) {

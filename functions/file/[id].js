@@ -190,6 +190,7 @@ const CONTENT_TYPES_BY_EXTENSION = {
     png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
     webp: 'image/webp', avif: 'image/avif', apng: 'image/apng', bmp: 'image/bmp',
     ico: 'image/x-icon', tiff: 'image/tiff', tif: 'image/tiff',
+    heic: 'image/heic', heif: 'image/heif', jxl: 'image/jxl',
     // videos
     mp4: 'video/mp4', m4v: 'video/x-m4v', mov: 'video/quicktime',
     webm: 'video/webm', ogv: 'video/ogg', mkv: 'video/x-matroska',
@@ -198,6 +199,7 @@ const CONTENT_TYPES_BY_EXTENSION = {
     mp3: 'audio/mpeg', m4a: 'audio/mp4', ogg: 'audio/ogg', oga: 'audio/ogg',
     wav: 'audio/wav', flac: 'audio/flac', aac: 'audio/aac',
     opus: 'audio/ogg', wma: 'audio/x-ms-wma',
+    aiff: 'audio/aiff', aif: 'audio/aiff', mka: 'audio/x-matroska',
     // documents
     pdf: 'application/pdf',
     // text / code (served as text/* so browsers render inline)
@@ -212,6 +214,17 @@ const CONTENT_TYPES_BY_EXTENSION = {
     bash: 'application/x-sh', zsh: 'application/x-sh',
     sql: 'application/sql', graphql: 'application/graphql',
     dockerfile: 'text/plain', makefile: 'text/plain',
+    // JS 库渲染的文档格式（以 application/octet-stream 提供，前端 JS 解析）
+    docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    ods: 'application/vnd.oasis.opendocument.spreadsheet',
+    pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+    epub: 'application/epub+zip',
+    zip: 'application/zip',
+    // 结构化数据 / 其他
+    geojson: 'application/geo+json', gpx: 'application/gpx+xml',
+    kml: 'application/vnd.google-earth.kml+xml', kmz: 'application/vnd.google-earth.kmz',
+    ics: 'text/calendar', vcf: 'text/vcard',
 };
 
 function contentTypeFromFilename(filename) {
@@ -227,11 +240,18 @@ function isPreviewableContent(contentType) {
         || contentType.startsWith('application/pdf')
         || contentType.startsWith('application/json')
         || contentType.startsWith('application/xml')
-        || contentType.startsWith('application/javascript');
+        || contentType.startsWith('application/javascript')
+        || contentType.startsWith('application/epub')
+        || contentType.startsWith('application/zip')
+        || contentType.startsWith('application/vnd.openxmlformats')
+        || contentType.startsWith('application/vnd.oasis')
+        || contentType.startsWith('application/vnd.google-earth')
+        || contentType.startsWith('application/gpx')
+        || contentType.startsWith('application/geo+json');
 }
 
 function isPreviewableFilename(filename) {
-    return /\.(?:avif|bmp|gif|ico|jpe?g|png|svg|webp|apng|tiff?|mp4|m4v|mov|webm|ogv|mkv|ts|3gp|mp3|m4a|ogg|oga|wav|flac|aac|opus|wma|pdf|txt|md|json|js|mjs|css|html?|xml|csv|log|ya?ml|toml|ini|conf|py|java|c|cpp|cc|h|hpp|go|rs|sh|bash|zsh|sql|graphql|dockerfile|makefile)$/i.test(String(filename));
+    return /\.(?:avif|bmp|gif|ico|jpe?g|png|svg|webp|apng|tiff?|heic|heif|jxl|mp4|m4v|mov|webm|ogv|mkv|ts|3gp|mp3|m4a|ogg|oga|wav|flac|aac|opus|wma|aiff?|mka|pdf|txt|md|json|js|mjs|css|html?|xml|csv|log|ya?ml|toml|ini|conf|py|java|c|cpp|cc|h|hpp|go|rs|sh|bash|zsh|sql|graphql|dockerfile|makefile|docx|xlsx|ods|pptx|epub|zip|geojson|gpx|kml?|kmz|ics|vcf)$/i.test(String(filename));
 }
 
 function escapeFilename(filename) {

@@ -115,7 +115,7 @@
       </div>
       <div id="join-input" class="hidden" style="margin-top: 16px;">
         <div style="display:flex;gap:8px;justify-content:center;">
-          <input type="text" id="join-code" placeholder="输入6位房间码" maxlength="6" style="font-family:var(--font-mono,monospace);font-size:18px;text-align:center;letter-spacing:3px;text-transform:uppercase;width:180px;padding:8px 12px;border:var(--bd);border-radius:var(--radius-sm)">
+          <input type="text" id="join-code" placeholder="输入6位房间码" maxlength="6" style="font-family:var(--font-mono,monospace);font-size:18px;text-align:center;letter-spacing:3px;width:180px;padding:8px 12px;border:var(--bd);border-radius:var(--radius-sm)">
           <button class="btn-snap primary" onclick="joinRoom()">加入</button>
         </div>
         <p class="error-msg hidden" id="join-error"></p>
@@ -256,7 +256,7 @@ async function createRoom() {
 
 // ---- 加入房间 ----
 async function joinRoom() {
-  const code = $('#join-code').value.trim().toUpperCase();
+  const code = $('#join-code').value.trim();
   $('#join-error').classList.add('hidden');
 
   if (!code || code.length < 4) {
@@ -664,7 +664,7 @@ dropZone.addEventListener('drop', (e) => {
 const params = new URLSearchParams(location.search);
 const autoRoom = params.get('room');
 if (autoRoom) {
-  $('#join-code').value = autoRoom.toUpperCase();
+  $('#join-code').value = autoRoom;
   $('#join-input').classList.remove('hidden');
   joinRoom();
 } else {

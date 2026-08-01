@@ -158,6 +158,7 @@ const PREVIEWABLE_EXTS = {
   png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
   webp: 'image/webp', avif: 'image/avif', apng: 'image/apng', bmp: 'image/bmp',
   ico: 'image/x-icon', tiff: 'image/tiff', tif: 'image/tiff',
+  heic: 'image/heic', heif: 'image/heif', jxl: 'image/jxl',
   // videos
   mp4: 'video/mp4', m4v: 'video/x-m4v', mov: 'video/quicktime',
   webm: 'video/webm', ogv: 'video/ogg', mkv: 'video/x-matroska',
@@ -166,6 +167,7 @@ const PREVIEWABLE_EXTS = {
   mp3: 'audio/mpeg', m4a: 'audio/mp4', ogg: 'audio/ogg', oga: 'audio/ogg',
   wav: 'audio/wav', flac: 'audio/flac', aac: 'audio/aac',
   opus: 'audio/ogg', wma: 'audio/x-ms-wma',
+  aiff: 'audio/aiff', aif: 'audio/aiff', mka: 'audio/x-matroska',
   // documents
   pdf: 'application/pdf',
   // text / code
@@ -180,6 +182,17 @@ const PREVIEWABLE_EXTS = {
   bash: 'application/x-sh', zsh: 'application/x-sh',
   sql: 'application/sql', graphql: 'application/graphql',
   dockerfile: 'text/plain', makefile: 'text/plain',
+  // JS 库渲染的文档格式
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  xlsx: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  ods: 'application/vnd.oasis.opendocument.spreadsheet',
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  epub: 'application/epub+zip',
+  zip: 'application/zip',
+  // 结构化数据 / 其他
+  geojson: 'application/geo+json', gpx: 'application/gpx+xml',
+  kml: 'application/vnd.google-earth.kml+xml', kmz: 'application/vnd.google-earth.kmz',
+  ics: 'text/calendar', vcf: 'text/vcard',
 };
 
 function extOf(name) {
