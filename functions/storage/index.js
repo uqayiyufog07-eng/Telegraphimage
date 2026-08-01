@@ -26,6 +26,12 @@ export function getUploadProvider(env) {
     return provider;
 }
 
+// Look up a provider by name ('telegram' | 'r2'); returns null for unknown names.
+// Used when a request explicitly overrides the configured default provider.
+export function getProviderByName(name) {
+    return PROVIDERS[String(name || '').toLowerCase()] || null;
+}
+
 // Ids are self-describing (R2 ids carry the 'r2-' prefix), so serving does not
 // depend on a KV metadata read; ids that predate providers are Telegram/Telegraph.
 export function getServingProvider(fileId) {

@@ -169,6 +169,22 @@
   }
   .upload-progress .up-bar-fill { height: 100%; background: var(--c-teal); transition: width .2s ease; }
 
+  /* 存储选择器 */
+  .storage-select {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--font-head); font-size: 13px; font-weight: 700;
+  }
+  .storage-select select {
+    padding: 4px 8px; font-size: 12px;
+  }
+
+  /* 回收站视图标记 */
+  .view-trash .breadcrumb { background: var(--c-coral); color: var(--c-white); }
+  .view-trash .breadcrumb a:hover { background: rgba(255,255,255,.2); }
+  .trash-actions { display: inline-flex; gap: 6px; }
+  .trash-col-deleted { width: 170px; font-family: var(--font-mono); font-size: 12px; color: var(--c-ink-soft); }
+  .trash-col-original { min-width: 180px; font-size: 12px; color: var(--c-ink-soft); word-break: break-all; }
+
   /* Toast（复用 theme.css） */
   .toast-zone { z-index: 100; }
 
@@ -223,9 +239,21 @@
         <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
         </svg>
-        批量删除
+        <span id="btn-batch-delete-text">批量删除</span>
       </button>
       <div class="spacer"></div>
+      <div class="storage-select" id="storage-select-wrap" hidden>
+        <span>存储:</span>
+        <select class="input" id="storage-select">
+          <option value="r2">R2</option>
+        </select>
+      </div>
+      <button class="btn btn-ghost btn-sm" id="btn-trash">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
+        <span>回收站</span>
+      </button>
       <button class="btn btn-ghost btn-sm" id="btn-refresh">
         <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
@@ -341,6 +369,9 @@ let sortKey = 'name';
 let sortAsc = true;
 let selectedPaths = new Set();
 let renameMode = null; // { type: 'mkdir'|'rename', oldPath?: string }
+let viewMode = 'files'; // 'files' | 'trash'
+let currentProvider = 'r2';
+let availableProviders = ['r2'];
 
 // ---- 工具函数 ----
 const $ = (sel) => document.querySelector(sel);
@@ -416,7 +447,10 @@ async function apiList(path) {
 async function apiUpload(path, file, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    const url = '/netdisk/api/upload?path=' + encodeURIComponent(path);
+    let url = '/netdisk/api/upload?path=' + encodeURIComponent(path);
+    if (currentProvider && currentProvider !== 'r2') {
+      url += '&provider=' + encodeURIComponent(currentProvider);
+    }
     xhr.open('POST', url);
     xhr.upload.onprogress = (e) => {
       if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
@@ -452,9 +486,48 @@ async function apiCall(url, method = 'GET', body = null) {
   return res;
 }
 
+async function apiListTrash() {
+  const res = await fetch('/netdisk/api/trash');
+  if (!res.ok) throw new Error('回收站加载失败: ' + res.status);
+  return res.json();
+}
+
+async function apiRestoreTrash(id) {
+  return apiCall('/netdisk/api/restore', 'POST', { id });
+}
+
+async function apiPurgeTrash(id) {
+  return apiCall('/netdisk/api/trash?id=' + encodeURIComponent(id), 'DELETE');
+}
+
+async function apiEmptyTrash() {
+  return apiCall('/netdisk/api/trash', 'DELETE');
+}
+
 // ---- 渲染 ----
 async function loadList() {
   const tbody = $('#file-tbody');
+  document.body.classList.toggle('view-trash', viewMode === 'trash');
+
+  // 更新工具栏按钮状态
+  $('#btn-trash').classList.toggle('active', viewMode === 'trash');
+  $('#btn-mkdir').style.display = viewMode === 'trash' ? 'none' : '';
+  $('#dropzone').style.display = viewMode === 'trash' ? 'none' : '';
+  $('#storage-select-wrap').style.display = viewMode === 'trash' ? 'none' : (availableProviders.length > 1 ? '' : 'none');
+  $('#btn-batch-delete-text').textContent = viewMode === 'trash' ? '彻底删除' : '移到回收站';
+
+  if (viewMode === 'trash') {
+    tbody.innerHTML = '<tr><td colspan="5" class="nd-loading">加载中...</td></tr>';
+    try {
+      const data = await apiListTrash();
+      renderTrashBreadcrumb();
+      renderTrashTable(data.items || []);
+    } catch (e) {
+      tbody.innerHTML = `<tr><td colspan="5" class="nd-loading" style="color:var(--c-coral)">${e.message}</td></tr>`;
+    }
+    return;
+  }
+
   tbody.innerHTML = '<tr><td colspan="5" class="nd-loading">加载中...</td></tr>';
   try {
     const data = await apiList(currentPath);
@@ -494,10 +567,158 @@ function renderBreadcrumb(path) {
   });
 }
 
-function renderTable(items) {
+function renderTrashBreadcrumb() {
+  const bc = $('#breadcrumb');
+  bc.innerHTML = '';
+  const backEl = document.createElement('a');
+  backEl.textContent = '← 返回文件列表';
+  backEl.onclick = () => { viewMode = 'files'; currentPath = ''; loadList(); };
+  bc.appendChild(backEl);
+  const sep = document.createElement('span');
+  sep.className = 'sep';
+  sep.textContent = '/';
+  bc.appendChild(sep);
+  const cur = document.createElement('span');
+  cur.className = 'current';
+  cur.textContent = '回收站';
+  bc.appendChild(cur);
+
+  // 添加清空回收站按钮
+  const emptyBtn = document.createElement('button');
+  emptyBtn.className = 'btn btn-danger btn-sm';
+  emptyBtn.style.marginLeft = 'auto';
+  emptyBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg> 清空回收站';
+  emptyBtn.onclick = emptyTrash;
+  bc.appendChild(emptyBtn);
+}
+
+function renderTrashTable(items) {
   const tbody = $('#file-tbody');
+  const thead = tbody.closest('table').querySelector('thead tr');
   selectedPaths.clear();
   updateBatchDeleteBtn();
+
+  // 更新表头
+  thead.innerHTML = `
+    <th style="width:36px"><input type="checkbox" id="select-all"></th>
+    <th class="col-name">名称</th>
+    <th class="col-size">大小</th>
+    <th class="trash-col-deleted">删除时间</th>
+    <th class="trash-col-original">原路径</th>
+    <th class="col-actions">操作</th>
+  `;
+
+  items.sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
+
+  if (items.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="6" class="nd-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+      <div>回收站为空</div>
+    </td></tr>`;
+    bindSelectAll();
+    return;
+  }
+
+  tbody.innerHTML = '';
+  for (const item of items) {
+    const tr = document.createElement('tr');
+    const iconCls = item.type === 'folder' ? 'folder' : 'doc';
+
+    tr.innerHTML = `
+      <td><input type="checkbox" class="row-check" data-id="${item.id}"></td>
+      <td class="col-name">
+        <div class="file-icon">
+          <span class="ico ${iconCls}">${iconSvg(iconCls)}</span>
+          <span class="fname">${escapeHtml(item.name)} ${item.type === 'folder' ? `(${item.fileCount} 项)` : ''}</span>
+        </div>
+      </td>
+      <td class="col-size">${formatSize(item.size)}</td>
+      <td class="trash-col-deleted">${formatTime(item.deletedAt)}</td>
+      <td class="trash-col-original">${escapeHtml(item.originalPath)}</td>
+      <td class="col-actions">
+        <div class="trash-actions">
+          <button class="btn btn-secondary btn-sm" data-action="restore" data-id="${item.id}">恢复</button>
+          <button class="btn btn-danger btn-sm" data-action="purge" data-id="${item.id}">彻底删除</button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  bindSelectAll();
+  tbody.querySelectorAll('.row-check').forEach(cb => {
+    cb.onchange = () => {
+      if (cb.checked) selectedPaths.add(cb.dataset.id);
+      else selectedPaths.delete(cb.dataset.id);
+      cb.closest('tr').classList.toggle('selected', cb.checked);
+      updateBatchDeleteBtn();
+    };
+  });
+  tbody.querySelectorAll('[data-action]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      handleTrashAction(btn.dataset.action, btn.dataset.id);
+    };
+  });
+}
+
+function bindSelectAll() {
+  const selectAll = $('#select-all');
+  if (selectAll) {
+    selectAll.onchange = (e) => {
+      $$('.row-check').forEach(cb => {
+        cb.checked = e.target.checked;
+        if (cb.checked) selectedPaths.add(cb.dataset.id || cb.dataset.path);
+        else selectedPaths.delete(cb.dataset.id || cb.dataset.path);
+        cb.closest('tr').classList.toggle('selected', cb.checked);
+      });
+      updateBatchDeleteBtn();
+    };
+  }
+}
+
+async function handleTrashAction(action, id) {
+  if (action === 'restore') {
+    try {
+      await apiRestoreTrash(id);
+      toast('已恢复');
+      loadList();
+    } catch (e) { toast(e.message, 'error'); }
+  } else if (action === 'purge') {
+    if (!confirm('确定彻底删除？此操作不可恢复。')) return;
+    try {
+      await apiPurgeTrash(id);
+      toast('已彻底删除');
+      loadList();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+}
+
+async function emptyTrash() {
+  if (!confirm('确定清空回收站？所有文件将被彻底删除，不可恢复。')) return;
+  try {
+    const result = await apiEmptyTrash();
+    toast(`已清空，删除 ${result.removedObjects} 个对象`);
+    loadList();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function renderTable(items) {
+  const tbody = $('#file-tbody');
+  const thead = tbody.closest('table').querySelector('thead tr');
+  selectedPaths.clear();
+  updateBatchDeleteBtn();
+
+  // 恢复文件列表表头
+  thead.innerHTML = `
+    <th style="width:36px"><input type="checkbox" id="select-all"></th>
+    <th class="col-name" data-sort="name">名称</th>
+    <th class="col-size" data-sort="size">大小</th>
+    <th class="col-time" data-sort="modified">修改时间</th>
+    <th class="col-actions">操作</th>
+  `;
+  bindSelectAll();
+  bindSortHeaders();
 
   // 排序
   items.sort((a, b) => {
@@ -589,6 +810,17 @@ function escapeHtml(s) {
 
 function updateBatchDeleteBtn() {
   $('#btn-batch-delete').disabled = selectedPaths.size === 0;
+}
+
+function bindSortHeaders() {
+  $$('.nd-table th[data-sort]').forEach(th => {
+    th.onclick = () => {
+      const key = th.dataset.sort;
+      if (sortKey === key) sortAsc = !sortAsc;
+      else { sortKey = key; sortAsc = true; }
+      loadList();
+    };
+  });
 }
 
 // ---- 操作处理 ----
@@ -711,23 +943,43 @@ async function confirmRename() {
 }
 
 async function deleteItem(path) {
-  if (!confirm('确定删除 "' + path + '" ？\n文件夹下的所有内容将被一并删除。')) return;
+  if (viewMode === 'trash') {
+    if (!confirm('确定彻底删除？此操作不可恢复。')) return;
+    try {
+      await apiPurgeTrash(path);
+      toast('已彻底删除');
+      loadList();
+    } catch (e) { toast(e.message, 'error'); }
+    return;
+  }
+  if (!confirm('确定将 "' + path + '" 移到回收站？\n文件夹下的所有内容将被一并移动。')) return;
   try {
     await apiCall('/netdisk/api/delete?path=' + encodeURIComponent(path), 'DELETE');
-    toast('已删除');
+    toast('已移到回收站');
     loadList();
   } catch (e) { toast(e.message, 'error'); }
 }
 
 async function batchDelete() {
   if (selectedPaths.size === 0) return;
-  if (!confirm(`确定删除选中的 ${selectedPaths.size} 项？`)) return;
+
+  if (viewMode === 'trash') {
+    if (!confirm(`确定彻底删除选中的 ${selectedPaths.size} 项？此操作不可恢复。`)) return;
+    for (const id of selectedPaths) {
+      try { await apiPurgeTrash(id); } catch (e) { console.error(e); }
+    }
+    toast('批量彻底删除完成');
+    loadList();
+    return;
+  }
+
+  if (!confirm(`确定将选中的 ${selectedPaths.size} 项移到回收站？`)) return;
   for (const path of selectedPaths) {
     try {
       await apiCall('/netdisk/api/delete?path=' + encodeURIComponent(path), 'DELETE');
     } catch (e) { console.error(e); }
   }
-  toast('批量删除完成');
+  toast('已移到回收站');
   loadList();
 }
 
@@ -776,12 +1028,27 @@ $('#file-input').onchange = (e) => { handleFiles(e.target.files); e.target.value
 $('#btn-mkdir').onclick = showMkdirModal;
 $('#btn-refresh').onclick = loadList;
 $('#btn-batch-delete').onclick = batchDelete;
+$('#btn-trash').onclick = () => {
+  if (viewMode === 'trash') {
+    viewMode = 'files';
+  } else {
+    viewMode = 'trash';
+  }
+  currentPath = '';
+  selectedPaths.clear();
+  loadList();
+};
 $('#rename-confirm').onclick = confirmRename;
 $('#share-create').onclick = createShare;
 $('#share-copy').onclick = () => {
   $('#share-link-url').select();
   document.execCommand('copy');
   toast('链接已复制');
+};
+
+// 存储选择器
+$('#storage-select').onchange = (e) => {
+  currentProvider = e.target.value;
 };
 
 // 拖拽上传
@@ -805,28 +1072,7 @@ document.addEventListener('drop', (e) => {
   e.preventDefault();
   if (e.target.closest('.nd-dropzone')) return; // 已由 dropzone 处理
   const files = e.dataTransfer.files;
-  if (files && files.length) handleFiles(files);
-});
-
-// 全选
-$('#select-all').onchange = (e) => {
-  $$('.row-check').forEach(cb => {
-    cb.checked = e.target.checked;
-    if (cb.checked) selectedPaths.add(cb.dataset.path);
-    else selectedPaths.delete(cb.dataset.path);
-    cb.closest('tr').classList.toggle('selected', cb.checked);
-  });
-  updateBatchDeleteBtn();
-};
-
-// 排序
-$$('.nd-table th[data-sort]').forEach(th => {
-  th.onclick = () => {
-    const key = th.dataset.sort;
-    if (sortKey === key) sortAsc = !sortAsc;
-    else { sortKey = key; sortAsc = true; }
-    loadList();
-  };
+  if (files && files.length && viewMode === 'files') handleFiles(files);
 });
 
 // 关闭模态
@@ -850,6 +1096,24 @@ fetch('/api/config').then(r => r.json()).then(cfg => {
   if (cfg.siteName) {
     $('#site-name').textContent = (cfg.siteName || '网盘') + ' · 网盘';
     document.title = (cfg.siteName || '网盘') + ' | 网盘';
+  }
+  // 初始化存储选择器
+  if (cfg.storage && cfg.storage.available) {
+    availableProviders = cfg.storage.available;
+    currentProvider = cfg.storage.default || 'r2';
+    const select = $('#storage-select');
+    select.innerHTML = '';
+    const labels = { telegram: 'Telegram', r2: 'R2' };
+    cfg.storage.available.forEach(prov => {
+      const opt = document.createElement('option');
+      opt.value = prov;
+      opt.textContent = labels[prov] || prov;
+      if (prov === currentProvider) opt.selected = true;
+      select.appendChild(opt);
+    });
+    if (cfg.storage.available.length > 1) {
+      $('#storage-select-wrap').hidden = false;
+    }
   }
 }).catch(() => {});
 </script>

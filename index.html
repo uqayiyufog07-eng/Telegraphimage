@@ -59,6 +59,14 @@
 #setup-notice .notice { margin-bottom: var(--sp-1); }
 #setup-notice .notice b { flex: none; font-family: var(--font-head); }
 
+/* ---- storage target picker ---- */
+.storage-picker {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; max-width: 880px; margin: 0 auto var(--sp-3);
+  font-family: var(--font-head); font-weight: 700; font-size: 13px;
+}
+.storage-picker .tabs { margin-bottom: 0; }
+
 /* ---- bento board ---- */
 .main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0 var(--sp-3); }
 .board {
@@ -190,6 +198,14 @@
 .item.error .progress i { background: var(--c-coral); }
 .item .state { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: #0f766e; }
 .item .state .icon { width: 13px; height: 13px; stroke-width: 2.6; }
+.item .badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin-left: 6px; padding: 2px 8px;
+  font-family: var(--font-head); font-size: 11px; font-weight: 700;
+  background: var(--c-teal); color: var(--c-white);
+  border-radius: 999px;
+}
+.item .badge.dedup { background: var(--c-coral); }
 .item .copy-one {
   flex: none; width: 36px; height: 36px; padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
@@ -270,6 +286,11 @@ footer a:hover { background: var(--c-yellow); }
   <div class="main">
     <div id="setup-notice" role="status" aria-live="polite"></div>
 
+    <div class="storage-picker" id="storage-picker" hidden>
+      <span>存储位置</span>
+      <span class="tabs" id="storage-tabs"></span>
+    </div>
+
     <div class="board">
       <div class="card uploader" id="dropzone" role="button" tabindex="0" aria-label="选择、拖拽或粘贴文件上传">
         <span class="deco deco-a" aria-hidden="true"></span>
@@ -329,6 +350,8 @@ footer a:hover { background: var(--c-yellow); }
   var activeUploads = 0;
   var pending = [];
   var currentFormat = 'url';
+  var currentProvider = null;
+  var availableProviders = [];
 
   var dropzone = document.getElementById('dropzone');
   var fileInput = document.getElementById('file-input');
@@ -369,7 +392,33 @@ footer a:hover { background: var(--c-yellow); }
       if (netdiskLink) netdiskLink.remove();
     }
     renderSetupProblems(config.problems);
+    renderStoragePicker(config.storage);
   }).catch(function () { /* defaults already in markup */ });
+
+  function renderStoragePicker(storage) {
+    if (!storage || !storage.available || storage.available.length <= 1) return;
+    availableProviders = storage.available;
+    currentProvider = storage.default || 'telegram';
+    var picker = document.getElementById('storage-picker');
+    var tabs = document.getElementById('storage-tabs');
+    picker.hidden = false;
+
+    var labels = { telegram: 'Telegram', r2: 'R2' };
+    storage.available.forEach(function (prov) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.provider = prov;
+      btn.textContent = labels[prov] || prov;
+      if (prov === currentProvider) btn.classList.add('active');
+      btn.addEventListener('click', function () {
+        currentProvider = prov;
+        tabs.querySelectorAll('button').forEach(function (b) {
+          b.classList.toggle('active', b === btn);
+        });
+      });
+      tabs.appendChild(btn);
+    });
+  }
 
   // Show deployment problems (missing bindings/variables) instead of letting the
   // first upload fail with an opaque error.
@@ -502,6 +551,9 @@ footer a:hover { background: var(--c-yellow); }
   function uploadFile(file, item) {
     var formData = new FormData();
     formData.append('file', file);
+    if (currentProvider) {
+      formData.append('provider', currentProvider);
+    }
 
     var xhr = new XMLHttpRequest();
     xhr.open('POST', '/upload');
@@ -517,10 +569,12 @@ footer a:hover { background: var(--c-yellow); }
     xhr.onload = function () {
       var src = null;
       var errorMessage = null;
+      var isDedup = false;
       try {
         var data = JSON.parse(xhr.responseText);
         if (xhr.status === 200 && data && data[0] && data[0].src) {
           src = data[0].src;
+          isDedup = !!data[0].deduplicated;
         } else {
           errorMessage = (data && data.error) || ('HTTP ' + xhr.status);
         }
@@ -529,7 +583,7 @@ footer a:hover { background: var(--c-yellow); }
       }
 
       if (src) {
-        finishItem(item, file, src);
+        finishItem(item, file, src, isDedup);
       } else {
         failItem(item, file, errorMessage);
       }
@@ -546,7 +600,7 @@ footer a:hover { background: var(--c-yellow); }
     xhr.send(formData);
   }
 
-  function finishItem(item, file, src) {
+  function finishItem(item, file, src, isDedup) {
     var fullUrl = location.origin + src;
     uploaded.push({ url: fullUrl, fileName: file.name });
 
@@ -556,9 +610,16 @@ footer a:hover { background: var(--c-yellow); }
     var state = document.createElement('span');
     state.className = 'state';
     state.innerHTML = TICK_ICON;
-    state.appendChild(document.createTextNode('上传成功'));
+    state.appendChild(document.createTextNode(isDedup ? '已存在' : '上传成功'));
     item.meta.appendChild(document.createTextNode(formatSize(file.size) + ' · '));
     item.meta.appendChild(state);
+
+    if (isDedup) {
+      var badge = document.createElement('span');
+      badge.className = 'badge dedup';
+      badge.textContent = '秒传';
+      item.meta.appendChild(badge);
+    }
 
     var copyButton = document.createElement('button');
     copyButton.type = 'button';

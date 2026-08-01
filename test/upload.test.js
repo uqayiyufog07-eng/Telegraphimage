@@ -228,8 +228,11 @@ describe('upload function', function () {
 
     assert.strictEqual(res.status, 200);
     assert.deepStrictEqual(JSON.parse(await res.text()), [{ src: '/file/doc-id.txt' }]);
-    assert.strictEqual(img_url.operations.put.length, 1);
+    // 两次 put：元数据 + 去重记录
+    assert.strictEqual(img_url.operations.put.length, 2);
     assert.strictEqual(img_url.operations.put[0].key, 'doc-id.txt');
+    // 第二次 put 应该是 dedup: 前缀的去重记录
+    assert.ok(img_url.operations.put[1].key.startsWith('dedup:'));
   });
 
   it('returns a short link and stores the mapping when short URLs are enabled', async function () {

@@ -1,9 +1,10 @@
 import { errorHandling, telemetryData } from "./utils/middleware.js";
 import { authenticateUploadRequest } from "./utils/auth.js";
 import { jsonResponse } from "./utils/http.js";
-import { createDefaultMetadata, putMetadata } from "./utils/metadata.js";
+import { createDefaultMetadata, getMetadata, putMetadata } from "./utils/metadata.js";
 import { allocateShortId, isShortUrlsEnabled, putShortLink } from "./utils/shortlink.js";
-import { getUploadProvider, r2Provider } from "./storage/index.js";
+import { getProviderByName, getUploadProvider, r2Provider } from "./storage/index.js";
+import { dedupKey, deleteDedupEntry, getDedupEntry, hashFileContent, putDedupEntry } from "./utils/dedup.js";
 
 // Files larger than this threshold are automatically routed to the R2 bucket,
 // regardless of STORAGE_PROVIDER. Telegram Bot API rejects files > 20 MB anyway,
@@ -11,14 +12,20 @@ import { getUploadProvider, r2Provider } from "./storage/index.js";
 // Override with the R2_AUTO_THRESHOLD_BYTES env var (bytes).
 const R2_AUTO_THRESHOLD_BYTES = 20 * 1024 * 1024;
 
-function pickProvider(env, fileSize) {
-    const baseProvider = getUploadProvider(env);
+function pickProvider(env, fileSize, requestedName) {
     const threshold = parseThresholdBytes(env.R2_AUTO_THRESHOLD_BYTES);
 
     if (fileSize > threshold) {
         return r2Provider;
     }
-    return baseProvider;
+    if (requestedName) {
+        const provider = getProviderByName(requestedName);
+        if (!provider) {
+            throw new Error(`Unknown provider: ${requestedName}. Available: telegram, r2`);
+        }
+        return provider;
+    }
+    return getUploadProvider(env);
 }
 
 function parseThresholdBytes(raw) {
@@ -36,6 +43,7 @@ export async function onRequestPost(context) {
             return authResponse;
         }
 
+        const url = new URL(request.url);
         const clonedRequest = request.clone();
         const formData = await clonedRequest.formData();
 
@@ -50,10 +58,28 @@ export async function onRequestPost(context) {
         const fileName = uploadFile.name;
         const fileExtension = fileName.split('.').pop().toLowerCase();
 
-        // Route large files to R2 automatically; falls back to the configured
-        // provider for everything else.
-        const provider = pickProvider(env, uploadFile.size);
+        // 存储目标：默认取 STORAGE_PROVIDER，可用 ?provider=r2|telegram
+        // 或表单字段 provider 覆盖；超大文件仍强制走 R2。
+        const requestedProvider = url.searchParams.get('provider') || formData.get('provider') || '';
+        const provider = pickProvider(env, uploadFile.size, requestedProvider);
         provider.validateConfig(env);
+
+        // 内容去重：相同内容的文件直接返回已有链接，不重复存储。
+        let fileHash = null;
+        if (env.img_url) {
+            fileHash = await hashFileContent(uploadFile);
+            if (fileHash) {
+                const existing = await getDedupEntry(env, dedupKey(fileHash));
+                if (existing?.fileId) {
+                    const existingMeta = await getMetadata(env, existing.fileId);
+                    if (existingMeta) {
+                        return jsonResponse([{ 'src': existing.src || `/file/${existing.fileId}`, 'deduplicated': true }]);
+                    }
+                    // 原文件已被删除（KV 元数据不存在）-> 清理过期去重记录，继续正常上传
+                    await deleteDedupEntry(env, dedupKey(fileHash));
+                }
+            }
+        }
 
         const longId = await provider.upload(env, uploadFile, { fileName, fileExtension });
         let shortId = null;
@@ -69,10 +95,22 @@ export async function onRequestPost(context) {
                 fileSize: uploadFile.size,
                 provider: provider.key,
                 ...(shortId ? { shortId } : {}),
+                ...(fileHash ? { fileHash } : {}),
             }));
 
             if (shortId) {
                 await putShortLink(env, shortId, longId);
+            }
+
+            if (fileHash) {
+                await putDedupEntry(env, dedupKey(fileHash), {
+                    fileId: longId,
+                    src: `/file/${shortId || longId}`,
+                    provider: provider.key,
+                    fileName,
+                    fileSize: uploadFile.size,
+                    createdAt: Date.now(),
+                });
             }
         }
 

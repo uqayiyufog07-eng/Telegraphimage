@@ -21,6 +21,10 @@ describe('/api/config endpoint', function () {
       netdiskEnabled: false,
       webdavEnabled: false,
       webdavUrl: null,
+      storage: {
+        available: [],
+        default: 'telegram'
+      }
     });
 
     // an empty env is not a usable deployment, and the response says why
@@ -55,6 +59,10 @@ describe('/api/config endpoint', function () {
       netdiskEnabled: false,
       webdavEnabled: false,
       webdavUrl: null,
+      storage: {
+        available: [],
+        default: 'telegram'
+      }
     });
     assert.ok(setup, 'setup status is always present');
     assert.ok(Array.isArray(problems));

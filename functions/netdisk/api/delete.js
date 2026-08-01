@@ -1,19 +1,22 @@
 import { jsonResponse } from '../../utils/http.js';
 import { normalizeDirPrefix, normalizeFileKey, isFolderKey, listAllObjects } from '../../utils/r2-paths.js';
+import { moveToTrash, trashR2Prefix } from '../../utils/trash.js';
 
 // 删除文件或文件夹：DELETE /netdisk/api/delete?path=docs/file.txt
-//   - 文件：直接删除该 key
-//   - 文件夹：递归列出所有以该前缀开头的对象并删除，同时删除文件夹标记
-// 也支持 POST（body JSON { path: "..." }）便于前端调用。
+//   - 默认软删除：移入回收站（R2 __trash__/ 前缀 + KV trash:{id} 记录），可恢复
+//   - permanent=true：物理删除，不进回收站
+// 也支持 POST（body JSON { path: "...", permanent?: boolean }）便于前端调用。
 export async function onRequest(context) {
   const { request, env } = context;
   const url = new URL(request.url);
   let rawPath = url.searchParams.get('path') || '';
+  let permanent = url.searchParams.get('permanent') === 'true';
 
-  if (!rawPath && request.method === 'POST') {
+  if (request.method === 'POST') {
     try {
       const body = await request.json();
-      rawPath = body.path || '';
+      if (!rawPath) rawPath = body.path || '';
+      if (body.permanent === true) permanent = true;
     } catch {
       // ignore
     }
@@ -23,15 +26,15 @@ export async function onRequest(context) {
     return jsonResponse({ error: 'Missing "path" parameter' }, { status: 400 });
   }
 
+  // 回收站内部路径不允许通过此接口操作
+  if (normalizeFileKey(rawPath).startsWith(trashR2Prefix()) || normalizeDirPrefix(rawPath).startsWith(trashR2Prefix())) {
+    return jsonResponse({ error: 'Cannot delete items inside the trash. Use /netdisk/api/trash instead.' }, { status: 400 });
+  }
+
   const dirPrefix = normalizeDirPrefix(rawPath);
   const fileKey = normalizeFileKey(rawPath);
 
   // 先判断是文件还是文件夹
-  // 1) 若以 "/" 结尾或路径是已知目录标记 -> 文件夹删除
-  // 2) 尝试 head 文件 key -> 文件删除
-  // 3) 尝试 head 目录标记 -> 文件夹删除
-  // 4) 都不存在，但可能有以该前缀开头的对象 -> 按文件夹递归删
-
   const isExplicitFolder = rawPath.endsWith('/');
   let targetIsFolder = isExplicitFolder;
 
@@ -39,8 +42,12 @@ export async function onRequest(context) {
     const fileHead = await env.img_r2.head(fileKey);
     if (fileHead && !isFolderKey(fileKey)) {
       // 是文件
-      await env.img_r2.delete(fileKey);
-      return jsonResponse({ success: true, deleted: [fileKey], type: 'file' });
+      if (permanent) {
+        await env.img_r2.delete(fileKey);
+        return jsonResponse({ success: true, deleted: [fileKey], type: 'file', permanent: true });
+      }
+      const record = await moveToTrash(env, { fileKey, isFolder: false });
+      return jsonResponse({ success: true, trashed: true, trashId: record.id, type: 'file', path: fileKey });
     }
     // 检查是否是文件夹标记
     const dirHead = await env.img_r2.head(dirPrefix);
@@ -49,7 +56,29 @@ export async function onRequest(context) {
     }
   }
 
-  // 文件夹删除：递归列出并删除
+  if (permanent) {
+    return await hardDeleteFolder(env, dirPrefix);
+  }
+
+  // 软删除文件夹：整体移入回收站
+  const children = await listAllObjects(env.img_r2, dirPrefix, 1);
+  const dirHead = await env.img_r2.head(dirPrefix);
+  if (!dirHead && children.length === 0) {
+    return jsonResponse({ error: 'Path not found', path: rawPath }, { status: 404 });
+  }
+
+  const record = await moveToTrash(env, { dirPrefix, isFolder: true });
+  return jsonResponse({
+    success: true,
+    trashed: true,
+    trashId: record.id,
+    type: 'folder',
+    path: dirPrefix,
+    fileCount: record.fileCount,
+  });
+}
+
+async function hardDeleteFolder(env, dirPrefix) {
   const objects = await listAllObjects(env.img_r2, dirPrefix, 10000);
   const keysToDelete = objects.map(o => o.key);
 
@@ -67,6 +96,7 @@ export async function onRequest(context) {
   return jsonResponse({
     success: true,
     type: 'folder',
+    permanent: true,
     deletedCount: keysToDelete.length,
     deleted: keysToDelete,
   });

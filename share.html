@@ -71,6 +71,23 @@
   .preview-box img, .preview-box video, .preview-box audio { max-width: 100%; max-height: 400px; border: var(--bd-thin); border-radius: var(--radius-sm); }
 
   .btn-bar { display: flex; gap: 8px; margin-top: var(--sp-2); flex-wrap: wrap; }
+
+  /* 面包屑 */
+  .breadcrumb {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 4px;
+    padding: 8px 12px; margin-bottom: 12px;
+    background: var(--c-paper-warm); border: var(--bd-thin); border-radius: var(--radius-sm);
+    font-size: 13px; font-weight: 600;
+  }
+  .breadcrumb a { cursor: pointer; padding: 2px 6px; border-radius: 4px; }
+  .breadcrumb a:hover { background: var(--c-yellow); }
+  .breadcrumb .sep { color: var(--c-ink-soft); margin: 0 2px; }
+  .breadcrumb .current { background: var(--c-yellow); padding: 2px 8px; border-radius: 4px; }
+
+  /* 文件夹项 */
+  .file-item.folder { cursor: pointer; }
+  .file-item.folder:hover { background: var(--c-yellow); }
+  .file-item .ico.folder { background: var(--c-yellow); }
 </style>
 </head>
 <body>
@@ -99,6 +116,7 @@ const params = new URLSearchParams(location.search);
 const token = params.get('token') || location.pathname.split('/').pop();
 let verifiedPassword = '';
 let shareInfo = null;
+let currentDir = ''; // 当前浏览的子目录（相对路径）
 
 function escapeHtml(s) {
   return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -117,19 +135,26 @@ function iconClass(name) {
   return 'doc';
 }
 function iconSvg(t) {
+  if (t==='folder') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
   if (t==='img') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
   if (t==='video') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>';
   if (t==='audio') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
 }
 
-async function loadShare() {
+function getBaseUrl() {
+  return '/api/share/access?token=' + encodeURIComponent(token) + (verifiedPassword ? '&password=' + encodeURIComponent(verifiedPassword) : '');
+}
+
+async function loadShare(dir) {
+  if (dir !== undefined) currentDir = dir;
   if (!token) {
     $('#body').innerHTML = '<div class="error-state">无效的分享链接</div>';
     return;
   }
   try {
-    const url = '/api/share/access?token=' + encodeURIComponent(token) + (verifiedPassword ? '&password=' + encodeURIComponent(verifiedPassword) : '');
+    let url = getBaseUrl();
+    if (currentDir) url += '&dir=' + encodeURIComponent(currentDir);
     const res = await fetch(url);
     const data = await res.json().catch(() => ({}));
 
@@ -187,77 +212,166 @@ async function submitPassword() {
   }
 }
 
+function renderBreadcrumb(data) {
+  const bc = document.createElement('div');
+  bc.className = 'breadcrumb';
+
+  // 根目录
+  const root = document.createElement('a');
+  root.textContent = '根目录';
+  root.onclick = () => loadShare('');
+  bc.appendChild(root);
+
+  if (data.dir) {
+    const parts = data.dir.split('/').filter(Boolean);
+    let acc = '';
+    parts.forEach((part, i) => {
+      acc += (acc ? '/' : '') + part;
+      const sep = document.createElement('span');
+      sep.className = 'sep';
+      sep.textContent = '/';
+      bc.appendChild(sep);
+
+      const isLast = i === parts.length - 1;
+      const el = document.createElement(isLast ? 'span' : 'a');
+      el.textContent = part;
+      if (isLast) {
+        el.className = 'current';
+      } else {
+        el.onclick = () => loadShare(acc);
+      }
+      bc.appendChild(el);
+    });
+  }
+
+  return bc;
+}
+
 function renderShare(data) {
   $('#subtitle').textContent = data.type === 'folder' ? '文件夹分享' : '文件分享';
-  const baseUrl = '/api/share/access?token=' + encodeURIComponent(token) + (verifiedPassword ? '&password=' + encodeURIComponent(verifiedPassword) : '');
+  const baseUrl = getBaseUrl();
 
   if (data.type === 'file') {
     $('#title').textContent = data.name || '文件分享';
     const ext = (data.name.split('.').pop()||'').toLowerCase();
+    const fileUrl = `${baseUrl}&download=${encodeURIComponent(data.name)}`;
     let previewHtml = '';
     if (['png','jpg','jpeg','gif','webp','avif','bmp','svg','ico'].includes(ext)) {
-      previewHtml = `<div class="preview-box"><img src="${baseUrl}" alt="${escapeHtml(data.name)}"></div>`;
+      previewHtml = `<div class="preview-box"><img src="${fileUrl}" alt="${escapeHtml(data.name)}"></div>`;
     } else if (['mp4','m4v','mov','webm','ogv'].includes(ext)) {
-      previewHtml = `<div class="preview-box"><video src="${baseUrl}" controls></video></div>`;
+      previewHtml = `<div class="preview-box"><video src="${fileUrl}" controls></video></div>`;
     } else if (['mp3','m4a','ogg','wav','flac','aac'].includes(ext)) {
-      previewHtml = `<div class="preview-box"><audio src="${baseUrl}" controls></audio></div>`;
+      previewHtml = `<div class="preview-box"><audio src="${fileUrl}" controls></audio></div>`;
     }
 
-    $('#body').innerHTML = `
-      ${previewHtml}
+    $('#body').innerHTML = `${previewHtml}
       <div class="info-banner" style="margin-top:12px">
         <b>文件名:</b> ${escapeHtml(data.name)}<br>
         <b>大小:</b> ${formatSize(data.size)}
       </div>
       <div class="btn-bar">
-        <a class="btn btn-primary" href="${baseUrl}" download="${escapeHtml(data.name)}">
+        <a class="btn btn-primary" href="${fileUrl}" download="${escapeHtml(data.name)}">
           <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           下载文件
         </a>
-      </div>
-    `;
+      </div>`;
     return;
   }
 
   // 文件夹分享
   $('#title').textContent = '文件夹分享';
+  const dirs = data.directories || [];
   const items = data.items || [];
-  if (items.length === 0) {
-    $('#body').innerHTML = '<div class="empty-state">此文件夹为空</div>';
-    return;
+  const totalCount = dirs.length + items.length;
+
+  $('#body').innerHTML = '';
+
+  // 面包屑导航
+  $('#body').appendChild(renderBreadcrumb(data));
+
+  // 信息栏
+  const info = document.createElement('div');
+  info.className = 'info-banner';
+  info.innerHTML = `<b>项目数:</b> ${totalCount} 个 · <b>已下载:</b> ${data.downloadCount || 0} 次`;
+  $('#body').appendChild(info);
+
+  const list = document.createElement('div');
+  list.className = 'file-list';
+
+  // 返回上级目录（非根目录时）
+  if (data.dir) {
+    const parentPath = data.dir.split('/').filter(Boolean).slice(0, -1).join('/');
+    const upItem = document.createElement('div');
+    upItem.className = 'file-item folder';
+    upItem.style.cursor = 'pointer';
+    upItem.innerHTML = `
+      <span class="ico folder">${iconSvg('folder')}</span>
+      <div class="meta">
+        <div class="name">..</div>
+        <div class="size">返回上级目录</div>
+      </div>
+      <div class="actions"></div>
+    `;
+    upItem.onclick = () => loadShare(parentPath);
+    list.appendChild(upItem);
   }
 
-  const listHtml = items.map(item => {
-    const cls = iconClass(item.name);
-    const dlUrl = baseUrl + '&download=' + encodeURIComponent(item.name);
-    return `
-      <div class="file-item">
-        <span class="ico ${cls}">${iconSvg(cls)}</span>
-        <div class="meta">
-          <div class="name">${escapeHtml(item.name)}</div>
-          <div class="size">${formatSize(item.size)} · ${new Date(item.modified).toLocaleString('zh-CN')}</div>
-        </div>
-        <div class="actions">
-          <a class="btn btn-ghost btn-sm" href="${dlUrl}" download="${escapeHtml(item.name)}" title="下载">
-            <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          </a>
-        </div>
+  // 文件夹
+  dirs.forEach(dir => {
+    const item = document.createElement('div');
+    item.className = 'file-item folder';
+    const subPath = data.dir ? data.dir + dir + '/' : dir + '/';
+    item.innerHTML = `
+      <span class="ico folder">${iconSvg('folder')}</span>
+      <div class="meta">
+        <div class="name">${escapeHtml(dir)}/</div>
+        <div class="size">文件夹</div>
+      </div>
+      <div class="actions"></div>
+    `;
+    item.onclick = () => loadShare(subPath);
+    list.appendChild(item);
+  });
+
+  // 文件
+  items.forEach(file => {
+    const cls = iconClass(file.name);
+    const dlUrl = baseUrl + '&download=' + encodeURIComponent((data.dir || '') + file.name);
+    const item = document.createElement('div');
+    item.className = 'file-item';
+    const timeStr = file.modified ? new Date(file.modified).toLocaleString('zh-CN') : '';
+    item.innerHTML = `
+      <span class="ico ${cls}">${iconSvg(cls)}</span>
+      <div class="meta">
+        <div class="name">${escapeHtml(file.name)}</div>
+        <div class="size">${formatSize(file.size)}${timeStr ? ' · ' + timeStr : ''}</div>
+      </div>
+      <div class="actions">
+        <a class="btn btn-ghost btn-sm" href="${dlUrl}" download="${escapeHtml(file.name)}" title="下载" onclick="event.stopPropagation()">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        </a>
       </div>
     `;
-  }).join('');
+    list.appendChild(item);
+  });
 
-  $('#body').innerHTML = `
-    <div class="info-banner">
-      <b>文件数:</b> ${items.length} 个 · <b>已下载:</b> ${data.downloadCount || 0} 次
-    </div>
-    <div class="file-list">${listHtml}</div>
-    <div class="btn-bar">
-      <a class="btn btn-primary" href="${baseUrl}&zip=true" download="share.zip">
-        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-        打包下载全部 (ZIP)
-      </a>
-    </div>
-  `;
+  if (totalCount === 0 && !data.dir) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-state';
+    empty.textContent = '此文件夹为空';
+    list.appendChild(empty);
+  }
+
+  $('#body').appendChild(list);
+
+  // 按钮栏：打包下载当前目录
+  const btnBar = document.createElement('div');
+  btnBar.className = 'btn-bar';
+  btnBar.innerHTML = `<a class="btn btn-primary" href="${baseUrl}&zip=true" download="share.zip">
+    <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+    打包下载全部 (ZIP)
+  </a>`;
+  $('#body').appendChild(btnBar);
 }
 
 function renderExpired() {

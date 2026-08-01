@@ -19,6 +19,15 @@ export async function onRequestGet(context) {
         netdiskEnabled: !!env.img_r2,
         webdavEnabled: !!env.img_r2,
         webdavUrl: env.img_r2 ? '/webdav' : null,
+        // Storage targets the frontend may offer for uploads. The default comes
+        // from STORAGE_PROVIDER; availability is derived from configured bindings.
+        storage: {
+            default: (env.STORAGE_PROVIDER || 'telegram').toLowerCase(),
+            available: [
+                ...(!isEmptyBinding(env.TG_Bot_Token) && !isEmptyBinding(env.TG_Chat_ID) ? ['telegram'] : []),
+                ...(env.img_r2 ? ['r2'] : []),
+            ],
+        },
         // Deployment self-check so a misconfigured site says so instead of
         // failing silently on the first upload. Enum status only, no values.
         ready: setup.ready,

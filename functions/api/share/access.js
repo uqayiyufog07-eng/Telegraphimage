@@ -1,5 +1,5 @@
 import { jsonResponse } from '../../utils/http.js';
-import { isFolderKey, listAllObjects, basename, displayName } from '../../utils/r2-paths.js';
+import { isFolderKey, listAllObjects, basename, normalizePath } from '../../utils/r2-paths.js';
 import {
   getShare,
   verifyPassword,
@@ -58,21 +58,43 @@ export async function onRequestGet(context) {
 
   // 返回分享信息
   if (meta.type === 'folder') {
-    const children = await listAllObjects(env.img_r2, meta.path, 1000);
-    const fileObjects = children.filter(o => !isFolderKey(o.key));
-    const items = fileObjects.map(obj => ({
-      name: displayName(obj.key, meta.path),
-      path: obj.key,
-      size: obj.size,
-      modified: obj.uploaded ? obj.uploaded.toISOString() : null,
-      contentType: obj.httpMetadata?.contentType || '',
-    }));
+    // 支持 dir 参数浏览子目录（相对分享根目录，已剥离 .. 防越界）
+    const relRaw = url.searchParams.get('dir') || '';
+    const relDir = relRaw ? normalizePath(relRaw) + '/' : '';
+    const prefix = meta.path + relDir;
+
+    const result = await env.img_r2.list({
+      prefix,
+      delimiter: '/',
+      limit: 1000,
+      include: ['httpMetadata'],
+    });
+
+    const directories = (result.delimitedPrefixes || [])
+      .map(p => p.slice(prefix.length).replace(/\/+$/, ''))
+      .filter(Boolean);
+
+    const items = (result.objects || [])
+      .filter(o => !isFolderKey(o.key))
+      .map(obj => ({
+        name: obj.key.slice(prefix.length),
+        path: obj.key,
+        size: obj.size,
+        modified: obj.uploaded ? obj.uploaded.toISOString() : null,
+        contentType: obj.httpMetadata?.contentType || '',
+      }));
+
+    directories.sort((a, b) => a.localeCompare(b, 'zh'));
     items.sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+
     return jsonResponse({
       token,
       type: 'folder',
       path: meta.path,
+      dir: relDir,
+      directories,
       items,
+      truncated: result.truncated,
       downloadCount: meta.downloadCount || 0,
     });
   }
@@ -130,6 +152,23 @@ export async function onRequestPost(context) {
   });
 }
 
+// 可预览的文件扩展名 → Content-Type 映射（与 file/[id].js 保持一致）
+const PREVIEWABLE_EXTS = {
+  png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+  webp: 'image/webp', avif: 'image/avif', bmp: 'image/bmp', ico: 'image/x-icon',
+  mp4: 'video/mp4', m4v: 'video/x-m4v', mov: 'video/quicktime', webm: 'video/webm', ogv: 'video/ogg',
+  mp3: 'audio/mpeg', m4a: 'audio/mp4', ogg: 'audio/ogg', wav: 'audio/wav', flac: 'audio/flac', aac: 'audio/aac',
+  pdf: 'application/pdf',
+};
+
+function extOf(name) {
+  return String(name).split('.').pop().toLowerCase();
+}
+
+function isPreviewable(name) {
+  return extOf(name) in PREVIEWABLE_EXTS;
+}
+
 async function downloadSharedFile(env, token, meta, relativePath) {
   // 安全：relativePath 不能包含 .. 且必须在 meta.path 之下
   const safeRelative = String(relativePath).replace(/\.\./g, '').replace(/^\/+/, '');
@@ -147,9 +186,22 @@ async function downloadSharedFile(env, token, meta, relativePath) {
 
   await incrementDownloadCount(env, token);
 
+  const fileName = basename(fullKey);
+  const ext = extOf(fileName);
   const headers = new Headers();
   if (typeof obj.writeHttpMetadata === 'function') obj.writeHttpMetadata(headers);
-  headers.set('Content-Disposition', `attachment; filename*=UTF-8''${encodeURIComponent(basename(fullKey))}`);
+
+  // 修正 Content-Type：R2 存储时可能为 octet-stream，按扩展名修正
+  const upstreamType = headers.get('Content-Type') || '';
+  if (!upstreamType || upstreamType.startsWith('application/octet-stream')) {
+    const corrected = PREVIEWABLE_EXTS[ext];
+    if (corrected) headers.set('Content-Type', corrected);
+  }
+
+  // 可预览文件用 inline（浏览器内联显示），其他用 attachment（触发下载）
+  const disposition = isPreviewable(fileName) ? 'inline' : 'attachment';
+  headers.set('Content-Disposition', `${disposition}; filename*=UTF-8''${encodeURIComponent(fileName)}`);
+
   return new Response(obj.body, { status: 200, headers });
 }
 
