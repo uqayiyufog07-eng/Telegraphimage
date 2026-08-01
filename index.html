@@ -206,6 +206,8 @@
   border-radius: 999px;
 }
 .item .badge.dedup { background: var(--c-coral); }
+.item .badge.tg { background: #0088cc; }
+.item .badge.r2 { background: #f6821f; }
 .item .copy-one {
   flex: none; width: 36px; height: 36px; padding: 0;
   display: inline-flex; align-items: center; justify-content: center;
@@ -621,6 +623,11 @@ footer a:hover { background: var(--c-yellow); }
       badge.textContent = '秒传';
       item.meta.appendChild(badge);
     }
+
+    var provBadge = document.createElement('span');
+    provBadge.className = 'badge ' + (currentProvider === 'r2' ? 'r2' : 'tg');
+    provBadge.textContent = currentProvider === 'r2' ? 'R2' : 'TG';
+    item.meta.appendChild(provBadge);
 
     var copyButton = document.createElement('button');
     copyButton.type = 'button';

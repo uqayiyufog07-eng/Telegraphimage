@@ -703,7 +703,11 @@ async function handleTrashAction(action, id) {
     try {
       await apiPurgeTrash(id);
       toast('已彻底删除');
-      loadList();
+      // 先从 DOM 移除，避免 KV 最终一致性导致列表仍显示已删项
+      const row = document.querySelector(`[data-id="${CSS.escape(id)}"]`);
+      if (row) row.remove();
+      // 延迟刷新，等 KV 传播
+      setTimeout(() => loadList(), 500);
     } catch (e) { toast(e.message, 'error'); }
   }
 }
@@ -713,7 +717,9 @@ async function emptyTrash() {
   try {
     const result = await apiEmptyTrash();
     toast(`已清空，删除 ${result.removedObjects} 个对象`);
-    loadList();
+    // 直接清空表格，避免 KV 最终一致性延迟
+    $('#file-tbody').innerHTML = `<tr><td colspan="5" class="nd-empty"><div>回收站为空</div></td></tr>`;
+    setTimeout(() => loadList(), 800);
   } catch (e) { toast(e.message, 'error'); }
 }
 
@@ -1196,7 +1202,9 @@ async function deleteItem(path) {
     try {
       await apiPurgeTrash(path);
       toast('已彻底删除');
-      loadList();
+      const row = document.querySelector(`[data-id="${CSS.escape(path)}"]`);
+      if (row) row.remove();
+      setTimeout(() => loadList(), 500);
     } catch (e) { toast(e.message, 'error'); }
     return;
   }
@@ -1214,10 +1222,14 @@ async function batchDelete() {
   if (viewMode === 'trash') {
     if (!confirm(`确定彻底删除选中的 ${selectedPaths.size} 项？此操作不可恢复。`)) return;
     for (const id of selectedPaths) {
-      try { await apiPurgeTrash(id); } catch (e) { console.error(e); }
+      try {
+        await apiPurgeTrash(id);
+        const row = document.querySelector(`[data-id="${CSS.escape(id)}"]`);
+        if (row) row.remove();
+      } catch (e) { console.error(e); }
     }
     toast('批量彻底删除完成');
-    loadList();
+    setTimeout(() => loadList(), 500);
     return;
   }
 

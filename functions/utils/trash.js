@@ -157,13 +157,29 @@ function conflictError(path) {
 // 彻底删除单个回收站条目（R2 对象 + KV 记录）。返回删除的对象数。
 export async function purgeTrashItem(env, id) {
   const trashBase = `${TRASH_R2_PREFIX}${id}/`;
-  const objects = await listAllObjects(env.img_r2, trashBase, 10000);
-  const keys = objects.map(o => o.key);
-  for (let i = 0; i < keys.length; i += 1000) {
-    await env.img_r2.delete(keys.slice(i, i + 1000));
+  let removed = 0;
+
+  // 先删 R2 对象
+  try {
+    const objects = await listAllObjects(env.img_r2, trashBase, 10000);
+    const keys = objects.map(o => o.key);
+    for (let i = 0; i < keys.length; i += 1000) {
+      await env.img_r2.delete(keys.slice(i, i + 1000));
+    }
+    removed = keys.length;
+  } catch (e) {
+    console.error('purgeTrashItem: R2 delete failed for', id, e.message);
+    // 继续删 KV 记录，避免残留
   }
-  await deleteTrashRecord(env, id);
-  return keys.length;
+
+  // 再删 KV 记录（即使 R2 删除失败也要尝试清理 KV）
+  try {
+    await deleteTrashRecord(env, id);
+  } catch (e) {
+    console.error('purgeTrashItem: KV delete failed for', id, e.message);
+  }
+
+  return removed;
 }
 
 // 列出回收站条目；同时惰性清理超过保留期的条目。
@@ -206,15 +222,24 @@ export async function emptyTrash(env) {
   const items = await listTrashItems(env);
   let removed = 0;
   for (const item of items) {
-    removed += await purgeTrashItem(env, item.id);
+    try {
+      removed += await purgeTrashItem(env, item.id);
+    } catch (e) {
+      console.error('emptyTrash: purge failed for', item.id, e.message);
+    }
   }
 
   // 兜底：清理失去 KV 记录的孤儿对象
-  const orphans = await listAllObjects(env.img_r2, TRASH_R2_PREFIX, 100000);
-  const orphanKeys = orphans.map(o => o.key);
-  for (let i = 0; i < orphanKeys.length; i += 1000) {
-    await env.img_r2.delete(orphanKeys.slice(i, i + 1000));
+  try {
+    const orphans = await listAllObjects(env.img_r2, TRASH_R2_PREFIX, 100000);
+    const orphanKeys = orphans.map(o => o.key);
+    for (let i = 0; i < orphanKeys.length; i += 1000) {
+      await env.img_r2.delete(orphanKeys.slice(i, i + 1000));
+    }
+    removed += orphanKeys.length;
+  } catch (e) {
+    console.error('emptyTrash: orphan cleanup failed', e.message);
   }
 
-  return removed + orphanKeys.length;
+  return removed;
 }
