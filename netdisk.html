@@ -425,11 +425,11 @@ function iconSvg(type) {
 
 function isPreviewable(name, contentType) {
   const ext = (name.split('.').pop() || '').toLowerCase();
-  if (contentType?.startsWith('image/') || ['png','jpg','jpeg','gif','webp','avif','bmp','svg','ico'].includes(ext)) return 'image';
+  if (contentType?.startsWith('image/') || ['png','jpg','jpeg','gif','webp','avif','bmp','svg','ico','apng','tiff','tif'].includes(ext)) return 'image';
   if (contentType?.startsWith('video/') || ['mp4','m4v','mov','webm','ogv'].includes(ext)) return 'video';
-  if (contentType?.startsWith('audio/') || ['mp3','m4a','ogg','wav','flac','aac'].includes(ext)) return 'audio';
+  if (contentType?.startsWith('audio/') || ['mp3','m4a','ogg','wav','flac','aac','opus'].includes(ext)) return 'audio';
   if (ext === 'pdf' || contentType === 'application/pdf') return 'pdf';
-  if (['txt','md','json','js','css','html','xml','log','csv','py','java','c','cpp','go','rs','sh'].includes(ext)) return 'text';
+  if (['txt','md','json','js','mjs','css','html','htm','xml','log','csv','yaml','yml','toml','ini','conf','py','java','c','cpp','cc','h','hpp','go','rs','sh','bash','zsh','sql','graphql','dockerfile','makefile'].includes(ext)) return 'text';
   return null;
 }
 

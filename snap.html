@@ -1,0 +1,682 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="文件快传 - 打开链接即可P2P互传文件">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="stylesheet" href="/assets/theme.css">
+<title>文件快传 | Telegraph-Image</title>
+<style>
+.page { min-height: 100vh; display: flex; flex-direction: column; }
+.topbar .brand-mini { display: inline-flex; align-items: center; gap: 10px; margin-right: auto; font-family: var(--font-head); font-weight: 700; font-size: 17px; }
+.topbar .brand-mini .logo-badge { width: 36px; height: 36px; flex: none; display: inline-flex; align-items: center; justify-content: center; background: var(--c-yellow); border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+.topbar .brand-mini .logo-badge .icon { width: 20px; height: 20px; }
+.topbar nav { display: flex; align-items: center; gap: 10px; }
+
+.snap-main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: var(--sp-4) var(--sp-3); }
+.snap-card { width: 100%; max-width: 640px; background: var(--c-paper); border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow); padding: var(--sp-5); }
+
+.snap-hero { text-align: center; margin-bottom: var(--sp-4); }
+.snap-hero h1 { font-size: 28px; font-weight: 700; }
+.snap-hero h1 .hl { background: var(--c-yellow); padding: 0 .12em; border: var(--bd); border-radius: var(--radius); }
+.snap-hero .sub { margin-top: var(--sp-2); font-size: 15px; color: var(--c-ink-soft); }
+
+/* 状态指示器 */
+.status-bar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border: var(--bd-thin); border-radius: var(--radius-sm); margin-bottom: var(--sp-3); font-weight: 600; font-size: 14px; }
+.status-bar .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.status-bar .dot.idle { background: var(--c-ink-soft, #999); }
+.status-bar .dot.waiting { background: #f59e0b; animation: pulse 1.5s infinite; }
+.status-bar .dot.connecting { background: #3b82f6; animation: pulse 1s infinite; }
+.status-bar .dot.connected { background: #22c55e; }
+.status-bar .dot.error { background: #ef4444; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+/* 房间码展示 */
+.room-code-box { text-align: center; padding: var(--sp-3); margin-bottom: var(--sp-3); }
+.room-code-box .label { font-size: 13px; color: var(--c-ink-soft); margin-bottom: 4px; }
+.room-code-box .code { font-size: 36px; font-weight: 800; font-family: var(--font-mono, monospace); letter-spacing: 4px; color: var(--c-ink); background: var(--c-yellow); padding: 8px 24px; border: var(--bd); border-radius: var(--radius); display: inline-block; }
+.share-link-box { display: flex; gap: 8px; margin-top: 12px; }
+.share-link-box input { flex: 1; font-family: var(--font-mono, monospace); font-size: 13px; }
+
+/* 文件传输区 */
+.transfer-zone { border: 2px dashed var(--c-border, #ddd); border-radius: var(--radius); padding: var(--sp-4); text-align: center; transition: border-color .2s, background .2s; }
+.transfer-zone.dragover { border-color: var(--c-yellow); background: rgba(255, 204, 0, .08); }
+.transfer-zone .hint { color: var(--c-ink-soft); font-size: 14px; }
+.transfer-zone .hint b { color: var(--c-ink); }
+
+/* 文件列表 */
+.file-list { margin-top: var(--sp-3); }
+.file-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: var(--bd-thin); border-radius: var(--radius-sm); margin-bottom: 8px; background: var(--c-paper-warm); }
+.file-row .fname { flex: 1; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-row .fsize { font-size: 12px; color: var(--c-ink-soft); flex: none; }
+.file-row .fstatus { font-size: 12px; font-weight: 600; flex: none; min-width: 60px; text-align: right; }
+.file-row .fstatus.done { color: #22c55e; }
+.file-row .fstatus.sending { color: #3b82f6; }
+.file-row .fstatus.error { color: #ef4444; }
+.file-row .fstatus.received { color: #8b5cf6; }
+.file-row .progress { width: 100%; height: 4px; background: var(--c-border, #ddd); border-radius: 2px; margin-top: 4px; overflow: hidden; }
+.file-row .progress .bar { height: 100%; background: var(--c-yellow); transition: width .2s; }
+
+/* 按钮 */
+.btn-snap { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; font-family: var(--font-head); font-weight: 700; font-size: 15px; border: var(--bd); border-radius: var(--radius); cursor: pointer; transition: all .15s; }
+.btn-snap.primary { background: var(--c-yellow); color: var(--c-ink); }
+.btn-snap.primary:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+.btn-snap.ghost { background: var(--c-paper); }
+.btn-snap.ghost:hover { background: var(--c-paper-warm); }
+.btn-snap:disabled { opacity: .5; cursor: not-allowed; }
+
+.actions-row { display: flex; gap: 10px; justify-content: center; margin-top: var(--sp-3); flex-wrap: wrap; }
+.error-msg { color: #ef4444; font-size: 13px; text-align: center; margin-top: 8px; }
+.hidden { display: none !important; }
+
+@media (max-width: 640px) {
+  .snap-card { padding: var(--sp-3); }
+  .room-code-box .code { font-size: 28px; letter-spacing: 2px; }
+  .topbar .brand-mini span { display: none; }
+}
+</style>
+</head>
+<body class="page">
+<header class="topbar">
+  <a class="brand-mini" href="/">
+    <span class="logo-badge" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
+    <span>Telegraph-Image</span>
+  </a>
+  <nav>
+    <a class="btn btn-sm" href="/"><svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>首页</span></a>
+    <a class="btn btn-sm" href="/netdisk"><svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>网盘</span></a>
+  </nav>
+</header>
+
+<div class="snap-main">
+  <div class="snap-card">
+    <div class="snap-hero">
+      <h1>文件<span class="hl">快传</span></h1>
+      <p class="sub">打开链接即可 <b>P2P 直连互传文件</b>，不经过服务器存储</p>
+    </div>
+
+    <div id="status-bar" class="status-bar">
+      <span class="dot idle"></span>
+      <span id="status-text">准备中...</span>
+    </div>
+
+    <!-- 创建/加入面板 -->
+    <div id="panel-init" class="">
+      <div class="actions-row">
+        <button class="btn-snap primary" id="btn-create" onclick="createRoom()">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          创建快传房间
+        </button>
+        <button class="btn-snap ghost" id="btn-join" onclick="showJoinInput()">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          输入房间码加入
+        </button>
+      </div>
+      <div id="join-input" class="hidden" style="margin-top: 16px;">
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <input type="text" id="join-code" placeholder="输入6位房间码" maxlength="6" style="font-family:var(--font-mono,monospace);font-size:18px;text-align:center;letter-spacing:3px;text-transform:uppercase;width:180px;padding:8px 12px;border:var(--bd);border-radius:var(--radius-sm)">
+          <button class="btn-snap primary" onclick="joinRoom()">加入</button>
+        </div>
+        <p class="error-msg hidden" id="join-error"></p>
+      </div>
+    </div>
+
+    <!-- 等待连接面板（创建者） -->
+    <div id="panel-waiting" class="hidden">
+      <div class="room-code-box">
+        <div class="label">房间码</div>
+        <div class="code" id="room-code-display">------</div>
+        <div class="share-link-box">
+          <input type="text" id="share-link" readonly onclick="this.select()">
+          <button class="btn btn-sm" onclick="copyShareLink()">复制链接</button>
+        </div>
+        <p style="margin-top:10px;font-size:13px;color:var(--c-ink-soft);">将链接发给对方，打开即可互传文件</p>
+      </div>
+    </div>
+
+    <!-- 传输面板（已连接） -->
+    <div id="panel-transfer" class="hidden">
+      <div class="transfer-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px;margin:0 auto;color:var(--c-ink-soft)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <div class="hint" style="margin-top:8px;"><b>点击选择</b> 或 <b>拖拽文件</b> 到此处发送</div>
+        <input type="file" id="file-input" multiple class="hidden" onchange="sendFiles(this.files)">
+      </div>
+      <div class="file-list" id="file-list"></div>
+    </div>
+
+    <div id="error-display" class="error-msg hidden"></div>
+
+    <div class="actions-row" id="panel-actions" style="margin-top:20px;">
+      <button class="btn-snap ghost" onclick="location.href='/snap'">重置</button>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const $ = (s) => document.querySelector(s);
+
+// WebRTC 配置
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
+];
+const CHUNK_SIZE = 64 * 1024; // 64KB per chunk
+const POLL_INTERVAL = 1500;   // 信令轮询间隔 (ms)
+
+let pc = null;           // RTCPeerConnection
+let dc = null;           // DataChannel
+let role = '';            // 'caller' | 'callee'
+let roomCode = '';
+let pollTimer = null;
+let iceSentCount = 0;
+let iceReceivedCount = 0;
+let receivedFiles = [];  // 接收到的文件元数据
+
+function setStatus(state, text) {
+  const bar = $('#status-bar');
+  bar.querySelector('.dot').className = 'dot ' + state;
+  $('#status-text').textContent = text;
+}
+
+function showPanel(id) {
+  ['panel-init', 'panel-waiting', 'panel-transfer'].forEach(p => {
+    $('#' + p).classList.toggle('hidden', p !== id);
+  });
+}
+
+function showError(msg) {
+  const el = $('#error-display');
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function hideError() {
+  $('#error-display').classList.add('hidden');
+}
+
+// ---- 创建房间 ----
+async function createRoom() {
+  hideError();
+  setStatus('connecting', '正在创建房间...');
+  role = 'caller';
+
+  try {
+    pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+
+    // 创建 DataChannel（发送方创建）
+    dc = pc.createDataChannel('file-transfer', { ordered: true });
+    setupDataChannel(dc);
+
+    // 收集 ICE candidate
+    pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        sendIce(roomCode, 'caller', e.candidate);
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      updateConnectionState();
+    };
+
+    // 创建 offer
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    // 等待 ICE 收集完成
+    await waitForIceGathering(pc);
+
+    // 提交 offer 到信令服务器
+    const res = await fetch('/api/snap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ offer: pc.localDescription.sdp }),
+    });
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || '创建房间失败');
+
+    roomCode = data.code;
+    $('#room-code-display').textContent = roomCode;
+    const shareUrl = location.origin + '/snap?room=' + roomCode;
+    $('#share-link').value = shareUrl;
+
+    showPanel('panel-waiting');
+    setStatus('waiting', '等待对方加入... 房间码: ' + roomCode);
+
+    // 开始轮询 answer
+    startPolling();
+  } catch (e) {
+    setStatus('error', '创建失败');
+    showError(e.message);
+  }
+}
+
+// ---- 加入房间 ----
+async function joinRoom() {
+  const code = $('#join-code').value.trim().toUpperCase();
+  $('#join-error').classList.add('hidden');
+
+  if (!code || code.length < 4) {
+    $('#join-error').textContent = '请输入有效的房间码';
+    $('#join-error').classList.remove('hidden');
+    return;
+  }
+
+  hideError();
+  setStatus('connecting', '正在加入房间...');
+  role = 'callee';
+
+  try {
+    // 获取 offer
+    const res = await fetch('/api/snap/' + code);
+    const data = await res.json();
+
+    if (!res.ok) throw new Error(data.error || '房间不存在或已过期');
+
+    roomCode = code;
+    pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
+
+    // 接收方监听 DataChannel
+    pc.ondatachannel = (e) => {
+      dc = e.channel;
+      setupDataChannel(dc);
+    };
+
+    pc.onicecandidate = (e) => {
+      if (e.candidate) {
+        sendIce(roomCode, 'callee', e.candidate);
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      updateConnectionState();
+    };
+
+    // 设置远程 offer
+    await pc.setRemoteDescription({ type: 'offer', sdp: data.offer });
+
+    // 创建 answer
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    // 等待 ICE 收集
+    await waitForIceGathering(pc);
+
+    // 提交 answer
+    await fetch('/api/snap/' + roomCode, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ answer: pc.localDescription.sdp }),
+    });
+
+    // 开始轮询 caller 的 ICE candidates
+    startPolling();
+  } catch (e) {
+    setStatus('error', '加入失败');
+    showError(e.message);
+  }
+}
+
+function showJoinInput() {
+  $('#join-input').classList.remove('hidden');
+  $('#join-code').focus();
+}
+
+// ---- 等待 ICE 收集 ----
+function waitForIceGathering(pc) {
+  return new Promise((resolve) => {
+    if (pc.iceGatheringState === 'complete') {
+      resolve();
+      return;
+    }
+    const checkState = () => {
+      if (pc.iceGatheringState === 'complete') {
+        pc.removeEventListener('icegatheringstatechange', checkState);
+        resolve();
+      }
+    };
+    pc.addEventListener('icegatheringstatechange', checkState);
+    // 超时 3 秒后继续（不阻塞流程）
+    setTimeout(resolve, 3000);
+  });
+}
+
+// ---- 发送 ICE candidate ----
+async function sendIce(code, side, candidate) {
+  try {
+    await fetch('/api/snap/' + code, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ice: JSON.stringify(candidate),
+        side: side,
+      }),
+    });
+  } catch {}
+}
+
+// ---- 轮询信令 ----
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollSignal, POLL_INTERVAL);
+  pollSignal(); // 立即执行一次
+}
+
+async function pollSignal() {
+  if (!roomCode) return;
+  try {
+    const res = await fetch('/api/snap/' + roomCode);
+    if (!res.ok) {
+      if (res.status === 404 && role === 'caller') {
+        setStatus('error', '房间已过期');
+        clearInterval(pollTimer);
+      }
+      return;
+    }
+    const data = await res.json();
+
+    // caller: 等待 answer
+    if (role === 'caller' && data.answer && pc && !pc.currentRemoteDescription) {
+      await pc.setRemoteDescription({ type: 'answer', sdp: data.answer });
+    }
+
+    // 处理对方的 ICE candidates
+    const otherIce = role === 'caller' ? data.calleeIce : data.callerIce;
+    if (otherIce && otherIce.length > 0) {
+      for (let i = iceReceivedCount; i < otherIce.length; i++) {
+        try {
+          const candidate = JSON.parse(otherIce[i]);
+          if (candidate && pc) {
+            await pc.addIceCandidate(candidate);
+          }
+        } catch {}
+      }
+      iceReceivedCount = otherIce.length;
+    }
+  } catch {}
+}
+
+// ---- 连接状态更新 ----
+function updateConnectionState() {
+  if (!pc) return;
+  const state = pc.connectionState;
+  if (state === 'connected') {
+    setStatus('connected', '已连接 - 可以互传文件了');
+    showPanel('panel-transfer');
+    if (pollTimer) {
+      clearInterval(pollTimer);
+      pollTimer = null;
+    }
+    // 清理房间
+    fetch('/api/snap/' + roomCode, { method: 'DELETE' }).catch(() => {});
+  } else if (state === 'connecting' || state === 'new') {
+    setStatus('connecting', '正在建立 P2P 连接...');
+  } else if (state === 'disconnected' || state === 'failed') {
+    setStatus('error', '连接断开或失败');
+  }
+}
+
+// ---- DataChannel 设置 ----
+function setupDataChannel(channel) {
+  channel.binaryType = 'arraybuffer';
+
+  let recvMeta = null;
+  let recvChunks = [];
+  let recvSize = 0;
+
+  channel.onopen = () => {
+    setStatus('connected', '已连接 - 可以互传文件了');
+    showPanel('panel-transfer');
+  };
+
+  channel.onclose = () => {
+    setStatus('error', '连接已关闭');
+  };
+
+  channel.onerror = (e) => {
+    console.error('DataChannel error:', e);
+  };
+
+  channel.onmessage = (e) => {
+    const data = e.data;
+    if (typeof data === 'string') {
+      const msg = JSON.parse(data);
+      if (msg.type === 'file-start') {
+        recvMeta = msg;
+        recvChunks = [];
+        recvSize = 0;
+        addReceivedFileItem(msg.name, msg.size);
+      } else if (msg.type === 'file-end') {
+        if (recvMeta) {
+          const blob = new Blob(recvChunks, { type: recvMeta.mime || 'application/octet-stream' });
+          offerDownload(recvMeta.name, blob);
+          updateFileItemStatus(recvMeta.name, 'received', '已接收');
+          recvMeta = null;
+          recvChunks = [];
+          recvSize = 0;
+        }
+      } else if (msg.type === 'text') {
+        // 简单文本消息
+        console.log('Received text:', msg.content);
+      }
+    } else if (data instanceof ArrayBuffer) {
+      if (recvMeta) {
+        recvChunks.push(data);
+        recvSize += data.byteLength;
+        updateFileProgress(recvMeta.name, recvSize, recvMeta.size);
+      }
+    }
+  };
+}
+
+// ---- 发送文件 ----
+async function sendFiles(fileList) {
+  if (!dc || dc.readyState !== 'open') {
+    showError('连接未建立，无法发送文件');
+    return;
+  }
+
+  for (const file of fileList) {
+    await sendOneFile(file);
+  }
+  // 清空 input 以便重复选择
+  $('#file-input').value = '';
+}
+
+async function sendOneFile(file) {
+  const fileId = file.name + '-' + Date.now();
+  const item = addSentFileItem(file.name, file.size, fileId);
+
+  // 发送文件元信息
+  dc.send(JSON.stringify({
+    type: 'file-start',
+    id: fileId,
+    name: file.name,
+    size: file.size,
+    mime: file.type,
+  }));
+
+  // 分块发送
+  let offset = 0;
+  const reader = file.stream().getReader();
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      // value 是 Uint8Array，可能大于 CHUNK_SIZE，需要切分
+      let chunkOffset = 0;
+      while (chunkOffset < value.length) {
+        const chunk = value.subarray(chunkOffset, chunkOffset + CHUNK_SIZE);
+        // 等待缓冲区有空间
+        if (dc.bufferedAmount > 4 * 1024 * 1024) {
+          await new Promise(r => setTimeout(r, 20));
+        }
+        dc.send(chunk);
+        chunkOffset += chunk.length;
+        offset += chunk.length;
+        updateFileProgress(file.name, offset, file.size);
+      }
+    }
+
+    // 发送结束标记
+    dc.send(JSON.stringify({ type: 'file-end', id: fileId }));
+    updateFileItemStatus(file.name, 'done', '已发送');
+  } catch (e) {
+    updateFileItemStatus(file.name, 'error', '发送失败');
+    console.error('Send error:', e);
+  }
+}
+
+// ---- 文件列表 UI ----
+function addSentFileItem(name, size, id) {
+  const list = $('#file-list');
+  const row = document.createElement('div');
+  row.className = 'file-row';
+  row.dataset.fileId = id;
+  row.innerHTML = `
+    <div style="flex:1;min-width:0;">
+      <div class="fname">${escapeHtml(name)}</div>
+      <div class="fsize">${formatSize(size)}</div>
+      <div class="progress"><div class="bar" style="width:0%"></div></div>
+    </div>
+    <div class="fstatus sending">发送中</div>
+  `;
+  list.appendChild(row);
+  return row;
+}
+
+function addReceivedFileItem(name, size) {
+  const list = $('#file-list');
+  const row = document.createElement('div');
+  row.className = 'file-row';
+  row.dataset.fileName = name;
+  row.innerHTML = `
+    <div style="flex:1;min-width:0;">
+      <div class="fname">${escapeHtml(name)}</div>
+      <div class="fsize">${formatSize(size)}</div>
+      <div class="progress"><div class="bar" style="width:0%"></div></div>
+    </div>
+    <div class="fstatus sending">接收中</div>
+  `;
+  list.appendChild(row);
+  return row;
+}
+
+function updateFileProgress(name, current, total) {
+  const rows = document.querySelectorAll('.file-row');
+  for (const row of rows) {
+    const fname = row.querySelector('.fname');
+    if (fname && fname.textContent === name) {
+      const pct = total > 0 ? Math.min(100, (current / total) * 100) : 0;
+      row.querySelector('.bar').style.width = pct + '%';
+      return;
+    }
+  }
+}
+
+function updateFileItemStatus(name, status, text) {
+  const rows = document.querySelectorAll('.file-row');
+  for (const row of rows) {
+    const fname = row.querySelector('.fname');
+    if (fname && fname.textContent === name) {
+      const st = row.querySelector('.fstatus');
+      st.className = 'fstatus ' + status;
+      st.textContent = text;
+      if (status === 'done' || status === 'received') {
+        row.querySelector('.bar').style.width = '100%';
+      }
+      return;
+    }
+  }
+}
+
+function offerDownload(name, blob) {
+  const rows = document.querySelectorAll('.file-row');
+  for (const row of rows) {
+    const fname = row.querySelector('.fname');
+    if (fname && fname.textContent === name) {
+      const url = URL.createObjectURL(blob);
+      const st = row.querySelector('.fstatus');
+      st.innerHTML = '';
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = name;
+      a.className = 'btn btn-sm';
+      a.textContent = '下载';
+      a.style.padding = '2px 10px';
+      st.appendChild(a);
+
+      // 自动点击下载
+      a.click();
+      return;
+    }
+  }
+}
+
+// ---- 工具函数 ----
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatSize(b) {
+  if (!b) return '-';
+  const u = ['B','KB','MB','GB','TB']; let i=0,n=b;
+  while(n>=1024&&i<u.length-1){n/=1024;i++;}
+  return n.toFixed(i===0?0:1)+' '+u[i];
+}
+function copyShareLink() {
+  const input = $('#share-link');
+  input.select();
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(input.value).then(() => {
+      const btn = event.target;
+      const orig = btn.textContent;
+      btn.textContent = '已复制';
+      setTimeout(() => btn.textContent = orig, 1500);
+    });
+  } else {
+    document.execCommand('copy');
+  }
+}
+
+// ---- 拖拽上传 ----
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', (e) => {
+  e.preventDefault();
+  dropZone.classList.add('dragover');
+});
+dropZone.addEventListener('dragleave', () => {
+  dropZone.classList.remove('dragover');
+});
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault();
+  dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files.length > 0) {
+    sendFiles(e.dataTransfer.files);
+  }
+});
+
+// ---- 自动加入（URL 带 room 参数） ----
+const params = new URLSearchParams(location.search);
+const autoRoom = params.get('room');
+if (autoRoom) {
+  $('#join-code').value = autoRoom.toUpperCase();
+  $('#join-input').classList.remove('hidden');
+  joinRoom();
+} else {
+  setStatus('idle', '点击创建房间或输入房间码加入');
+}
+
+// 页面关闭时清理
+window.addEventListener('beforeunload', () => {
+  if (dc) dc.close();
+  if (pc) pc.close();
+  if (roomCode) fetch('/api/snap/' + roomCode, { method: 'DELETE' }).catch(() => {});
+});
+</script>
+</body>
+</html>

@@ -129,9 +129,11 @@ function formatSize(b) {
 }
 function iconClass(name) {
   const ext = (name.split('.').pop()||'').toLowerCase();
-  if (['png','jpg','jpeg','gif','webp','avif','bmp','svg','ico'].includes(ext)) return 'img';
-  if (['mp4','m4v','mov','webm','ogv'].includes(ext)) return 'video';
-  if (['mp3','m4a','ogg','wav','flac','aac'].includes(ext)) return 'audio';
+  if (['png','jpg','jpeg','gif','webp','avif','bmp','svg','ico','apng','tiff','tif'].includes(ext)) return 'img';
+  if (['mp4','m4v','mov','webm','ogv','mkv','ts','3gp'].includes(ext)) return 'video';
+  if (['mp3','m4a','ogg','wav','flac','aac','opus','wma'].includes(ext)) return 'audio';
+  if (['txt','md','json','js','mjs','css','html','htm','xml','csv','log','yaml','yml','toml','ini','conf','py','java','c','cpp','cc','h','hpp','go','rs','sh','bash','zsh','sql','graphql','dockerfile','makefile'].includes(ext)) return 'text';
+  if (ext === 'pdf') return 'pdf';
   return 'doc';
 }
 function iconSvg(t) {
@@ -139,6 +141,8 @@ function iconSvg(t) {
   if (t==='img') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
   if (t==='video') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>';
   if (t==='audio') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+  if (t==='text') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/></svg>';
+  if (t==='pdf') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M9 15h1.5a1 1 0 0 1 0 2H9v-2"/><path d="M14 15v2h1.5"/></svg>';
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
 }
 
@@ -256,12 +260,14 @@ function renderShare(data) {
     const ext = (data.name.split('.').pop()||'').toLowerCase();
     const fileUrl = `${baseUrl}&download=${encodeURIComponent(data.name)}`;
     let previewHtml = '';
-    if (['png','jpg','jpeg','gif','webp','avif','bmp','svg','ico'].includes(ext)) {
+    if (['png','jpg','jpeg','gif','webp','avif','bmp','svg','ico','apng','tiff','tif'].includes(ext)) {
       previewHtml = `<div class="preview-box"><img src="${fileUrl}" alt="${escapeHtml(data.name)}"></div>`;
     } else if (['mp4','m4v','mov','webm','ogv'].includes(ext)) {
       previewHtml = `<div class="preview-box"><video src="${fileUrl}" controls></video></div>`;
-    } else if (['mp3','m4a','ogg','wav','flac','aac'].includes(ext)) {
+    } else if (['mp3','m4a','ogg','wav','flac','aac','opus'].includes(ext)) {
       previewHtml = `<div class="preview-box"><audio src="${fileUrl}" controls></audio></div>`;
+    } else if (ext === 'pdf') {
+      previewHtml = `<div class="preview-box"><iframe src="${fileUrl}" style="width:100%;height:500px;border:var(--bd-thin);border-radius:var(--radius-sm)"></iframe></div>`;
     }
 
     $('#body').innerHTML = `${previewHtml}
@@ -275,6 +281,18 @@ function renderShare(data) {
           下载文件
         </a>
       </div>`;
+
+    // 文本文件：异步加载内容并渲染
+    if (['txt','md','json','js','mjs','css','html','htm','xml','csv','log','yaml','yml','toml','ini','conf','py','java','c','cpp','cc','h','hpp','go','rs','sh','bash','zsh','sql','graphql'].includes(ext)) {
+      fetch(fileUrl).then(r => r.text()).then(text => {
+        const pre = document.createElement('pre');
+        pre.style.cssText = 'text-align:left;padding:16px;background:var(--c-paper-warm);border:var(--bd-thin);border-radius:var(--radius-sm);font-family:var(--font-mono,monospace);font-size:13px;white-space:pre-wrap;word-break:break-all;max-height:60vh;overflow:auto';
+        pre.textContent = text;
+        const box = document.querySelector('.preview-box');
+        if (box) box.replaceWith(pre);
+        else $('#body').insertBefore(pre, $('#body').firstChild);
+      }).catch(() => {});
+    }
     return;
   }
 

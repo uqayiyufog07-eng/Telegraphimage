@@ -181,31 +181,37 @@ function isUsableContentType(contentType) {
     return contentType !== '' && !contentType.startsWith('application/octet-stream');
 }
 
-// svg is deliberately absent: serving user uploads as image/svg+xml would allow
-// stored XSS on the deployment's own origin.
+// svg is deliberately absent from CONTENT_TYPES_BY_EXTENSION: serving user
+// uploads as image/svg+xml would allow stored XSS on the deployment's origin.
+// (svg is still listed in isPreviewableFilename so the browser handles it
+// natively, but we don't force a Content-Type override.)
 const CONTENT_TYPES_BY_EXTENSION = {
-    png: 'image/png',
-    jpg: 'image/jpeg',
-    jpeg: 'image/jpeg',
-    gif: 'image/gif',
-    webp: 'image/webp',
-    avif: 'image/avif',
-    apng: 'image/apng',
-    bmp: 'image/bmp',
-    ico: 'image/x-icon',
-    mp4: 'video/mp4',
-    m4v: 'video/x-m4v',
-    mov: 'video/quicktime',
-    webm: 'video/webm',
-    ogv: 'video/ogg',
-    mp3: 'audio/mpeg',
-    m4a: 'audio/mp4',
-    ogg: 'audio/ogg',
-    oga: 'audio/ogg',
-    wav: 'audio/wav',
-    flac: 'audio/flac',
-    aac: 'audio/aac',
+    // images
+    png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
+    webp: 'image/webp', avif: 'image/avif', apng: 'image/apng', bmp: 'image/bmp',
+    ico: 'image/x-icon', tiff: 'image/tiff', tif: 'image/tiff',
+    // videos
+    mp4: 'video/mp4', m4v: 'video/x-m4v', mov: 'video/quicktime',
+    webm: 'video/webm', ogv: 'video/ogg', mkv: 'video/x-matroska',
+    ts: 'video/mp2t', '3gp': 'video/3gpp',
+    // audio
+    mp3: 'audio/mpeg', m4a: 'audio/mp4', ogg: 'audio/ogg', oga: 'audio/ogg',
+    wav: 'audio/wav', flac: 'audio/flac', aac: 'audio/aac',
+    opus: 'audio/ogg', wma: 'audio/x-ms-wma',
+    // documents
     pdf: 'application/pdf',
+    // text / code (served as text/* so browsers render inline)
+    txt: 'text/plain', md: 'text/markdown', json: 'application/json',
+    js: 'text/javascript', mjs: 'text/javascript', css: 'text/css',
+    html: 'text/html', htm: 'text/html', xml: 'application/xml',
+    csv: 'text/csv', log: 'text/plain', yaml: 'text/yaml', yml: 'text/yaml',
+    toml: 'application/toml', ini: 'text/plain', conf: 'text/plain',
+    py: 'text/x-python', java: 'text/x-java-source', c: 'text/x-c',
+    cpp: 'text/x-c++', cc: 'text/x-c++', h: 'text/x-c', hpp: 'text/x-c++',
+    go: 'text/x-go', rs: 'text/rust', sh: 'application/x-sh',
+    bash: 'application/x-sh', zsh: 'application/x-sh',
+    sql: 'application/sql', graphql: 'application/graphql',
+    dockerfile: 'text/plain', makefile: 'text/plain',
 };
 
 function contentTypeFromFilename(filename) {
@@ -217,11 +223,15 @@ function isPreviewableContent(contentType) {
     return contentType.startsWith('image/')
         || contentType.startsWith('video/')
         || contentType.startsWith('audio/')
-        || contentType.startsWith('application/pdf');
+        || contentType.startsWith('text/')
+        || contentType.startsWith('application/pdf')
+        || contentType.startsWith('application/json')
+        || contentType.startsWith('application/xml')
+        || contentType.startsWith('application/javascript');
 }
 
 function isPreviewableFilename(filename) {
-    return /\.(?:avif|bmp|gif|ico|jpe?g|png|svg|webp|apng|mp4|m4v|mov|webm|ogv|mp3|m4a|ogg|oga|wav|flac|aac|pdf)$/i.test(String(filename));
+    return /\.(?:avif|bmp|gif|ico|jpe?g|png|svg|webp|apng|tiff?|mp4|m4v|mov|webm|ogv|mkv|ts|3gp|mp3|m4a|ogg|oga|wav|flac|aac|opus|wma|pdf|txt|md|json|js|mjs|css|html?|xml|csv|log|ya?ml|toml|ini|conf|py|java|c|cpp|cc|h|hpp|go|rs|sh|bash|zsh|sql|graphql|dockerfile|makefile)$/i.test(String(filename));
 }
 
 function escapeFilename(filename) {

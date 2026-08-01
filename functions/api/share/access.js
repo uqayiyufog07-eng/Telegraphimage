@@ -154,11 +154,32 @@ export async function onRequestPost(context) {
 
 // 可预览的文件扩展名 → Content-Type 映射（与 file/[id].js 保持一致）
 const PREVIEWABLE_EXTS = {
+  // images
   png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', gif: 'image/gif',
-  webp: 'image/webp', avif: 'image/avif', bmp: 'image/bmp', ico: 'image/x-icon',
-  mp4: 'video/mp4', m4v: 'video/x-m4v', mov: 'video/quicktime', webm: 'video/webm', ogv: 'video/ogg',
-  mp3: 'audio/mpeg', m4a: 'audio/mp4', ogg: 'audio/ogg', wav: 'audio/wav', flac: 'audio/flac', aac: 'audio/aac',
+  webp: 'image/webp', avif: 'image/avif', apng: 'image/apng', bmp: 'image/bmp',
+  ico: 'image/x-icon', tiff: 'image/tiff', tif: 'image/tiff',
+  // videos
+  mp4: 'video/mp4', m4v: 'video/x-m4v', mov: 'video/quicktime',
+  webm: 'video/webm', ogv: 'video/ogg', mkv: 'video/x-matroska',
+  ts: 'video/mp2t', '3gp': 'video/3gpp',
+  // audio
+  mp3: 'audio/mpeg', m4a: 'audio/mp4', ogg: 'audio/ogg', oga: 'audio/ogg',
+  wav: 'audio/wav', flac: 'audio/flac', aac: 'audio/aac',
+  opus: 'audio/ogg', wma: 'audio/x-ms-wma',
+  // documents
   pdf: 'application/pdf',
+  // text / code
+  txt: 'text/plain', md: 'text/markdown', json: 'application/json',
+  js: 'text/javascript', mjs: 'text/javascript', css: 'text/css',
+  html: 'text/html', htm: 'text/html', xml: 'application/xml',
+  csv: 'text/csv', log: 'text/plain', yaml: 'text/yaml', yml: 'text/yaml',
+  toml: 'application/toml', ini: 'text/plain', conf: 'text/plain',
+  py: 'text/x-python', java: 'text/x-java-source', c: 'text/x-c',
+  cpp: 'text/x-c++', cc: 'text/x-c++', h: 'text/x-c', hpp: 'text/x-c++',
+  go: 'text/x-go', rs: 'text/rust', sh: 'application/x-sh',
+  bash: 'application/x-sh', zsh: 'application/x-sh',
+  sql: 'application/sql', graphql: 'application/graphql',
+  dockerfile: 'text/plain', makefile: 'text/plain',
 };
 
 function extOf(name) {
