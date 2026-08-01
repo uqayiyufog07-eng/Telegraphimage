@@ -178,13 +178,6 @@
     padding: 4px 8px; font-size: 12px;
   }
 
-  /* 回收站视图标记 */
-  .view-trash .breadcrumb { background: var(--c-coral); color: var(--c-white); }
-  .view-trash .breadcrumb a:hover { background: rgba(255,255,255,.2); }
-  .trash-actions { display: inline-flex; gap: 6px; }
-  .trash-col-deleted { width: 170px; font-family: var(--font-mono); font-size: 12px; color: var(--c-ink-soft); }
-  .trash-col-original { min-width: 180px; font-size: 12px; color: var(--c-ink-soft); word-break: break-all; }
-
   /* Toast（复用 theme.css） */
   .toast-zone { z-index: 100; }
 
@@ -248,12 +241,6 @@
           <option value="r2">R2</option>
         </select>
       </div>
-      <button class="btn btn-ghost btn-sm" id="btn-trash">
-        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-        </svg>
-        <span>回收站</span>
-      </button>
       <button class="btn btn-ghost btn-sm" id="btn-refresh">
         <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
@@ -369,7 +356,6 @@ let sortKey = 'name';
 let sortAsc = true;
 let selectedPaths = new Set();
 let renameMode = null; // { type: 'mkdir'|'rename', oldPath?: string }
-let viewMode = 'files'; // 'files' | 'trash'
 let currentProvider = 'r2';
 let availableProviders = ['r2'];
 
@@ -436,7 +422,7 @@ function isPreviewable(name, contentType) {
   if (ext === 'pdf' || contentType === 'application/pdf') return 'pdf';
   if (['txt','md','json','js','mjs','css','html','htm','xml','log','csv','yaml','yml','toml','ini','conf','py','java','c','cpp','cc','h','hpp','go','rs','sh','bash','zsh','sql','graphql','dockerfile','makefile','ics','vcf'].includes(ext)) return 'text';
   if (ext === 'docx') return 'docx';
-  if (['xlsx','ods','csv'].includes(ext) && ext !== 'csv' || ext === 'xlsx' || ext === 'ods') return 'spreadsheet';
+  if (['xlsx','ods'].includes(ext)) return 'spreadsheet';
   if (ext === 'pptx') return 'pptx';
   if (ext === 'epub') return 'epub';
   if (ext === 'zip') return 'zip';
@@ -452,7 +438,7 @@ async function apiList(path) {
   const url = '/netdisk/api/list?path=' + encodeURIComponent(path);
   const res = await fetch(url);
   if (!res.ok) {
-    if (res.status === 401) { location.href = '/netdisk'; return null; }
+    if (res.status === 401) { throw new Error('认证失败，请刷新页面重新登录'); }
     throw new Error('列表加载失败: ' + res.status);
   }
   return res.json();
@@ -500,47 +486,10 @@ async function apiCall(url, method = 'GET', body = null) {
   return res;
 }
 
-async function apiListTrash() {
-  const res = await fetch('/netdisk/api/trash');
-  if (!res.ok) throw new Error('回收站加载失败: ' + res.status);
-  return res.json();
-}
-
-async function apiRestoreTrash(id) {
-  return apiCall('/netdisk/api/restore', 'POST', { id });
-}
-
-async function apiPurgeTrash(id) {
-  return apiCall('/netdisk/api/trash?id=' + encodeURIComponent(id), 'DELETE');
-}
-
-async function apiEmptyTrash() {
-  return apiCall('/netdisk/api/trash', 'DELETE');
-}
-
 // ---- 渲染 ----
 async function loadList() {
   const tbody = $('#file-tbody');
-  document.body.classList.toggle('view-trash', viewMode === 'trash');
-
-  // 更新工具栏按钮状态
-  $('#btn-trash').classList.toggle('active', viewMode === 'trash');
-  $('#btn-mkdir').style.display = viewMode === 'trash' ? 'none' : '';
-  $('#dropzone').style.display = viewMode === 'trash' ? 'none' : '';
-  $('#storage-select-wrap').style.display = viewMode === 'trash' ? 'none' : (availableProviders.length > 1 ? '' : 'none');
-  $('#btn-batch-delete-text').textContent = viewMode === 'trash' ? '彻底删除' : '移到回收站';
-
-  if (viewMode === 'trash') {
-    tbody.innerHTML = '<tr><td colspan="5" class="nd-loading">加载中...</td></tr>';
-    try {
-      const data = await apiListTrash();
-      renderTrashBreadcrumb();
-      renderTrashTable(data.items || []);
-    } catch (e) {
-      tbody.innerHTML = `<tr><td colspan="5" class="nd-loading" style="color:var(--c-coral)">${e.message}</td></tr>`;
-    }
-    return;
-  }
+  $('#storage-select-wrap').style.display = availableProviders.length > 1 ? '' : 'none';
 
   tbody.innerHTML = '<tr><td colspan="5" class="nd-loading">加载中...</td></tr>';
   try {
@@ -581,101 +530,6 @@ function renderBreadcrumb(path) {
   });
 }
 
-function renderTrashBreadcrumb() {
-  const bc = $('#breadcrumb');
-  bc.innerHTML = '';
-  const backEl = document.createElement('a');
-  backEl.textContent = '← 返回文件列表';
-  backEl.onclick = () => { viewMode = 'files'; currentPath = ''; loadList(); };
-  bc.appendChild(backEl);
-  const sep = document.createElement('span');
-  sep.className = 'sep';
-  sep.textContent = '/';
-  bc.appendChild(sep);
-  const cur = document.createElement('span');
-  cur.className = 'current';
-  cur.textContent = '回收站';
-  bc.appendChild(cur);
-
-  // 添加清空回收站按钮
-  const emptyBtn = document.createElement('button');
-  emptyBtn.className = 'btn btn-danger btn-sm';
-  emptyBtn.style.marginLeft = 'auto';
-  emptyBtn.innerHTML = '<svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg> 清空回收站';
-  emptyBtn.onclick = emptyTrash;
-  bc.appendChild(emptyBtn);
-}
-
-function renderTrashTable(items) {
-  const tbody = $('#file-tbody');
-  const thead = tbody.closest('table').querySelector('thead tr');
-  selectedPaths.clear();
-  updateBatchDeleteBtn();
-
-  // 更新表头
-  thead.innerHTML = `
-    <th style="width:36px"><input type="checkbox" id="select-all"></th>
-    <th class="col-name">名称</th>
-    <th class="col-size">大小</th>
-    <th class="trash-col-deleted">删除时间</th>
-    <th class="trash-col-original">原路径</th>
-    <th class="col-actions">操作</th>
-  `;
-
-  items.sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
-
-  if (items.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="6" class="nd-empty">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="margin:0 auto"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-      <div>回收站为空</div>
-    </td></tr>`;
-    bindSelectAll();
-    return;
-  }
-
-  tbody.innerHTML = '';
-  for (const item of items) {
-    const tr = document.createElement('tr');
-    const iconCls = item.type === 'folder' ? 'folder' : 'doc';
-
-    tr.innerHTML = `
-      <td><input type="checkbox" class="row-check" data-id="${item.id}"></td>
-      <td class="col-name">
-        <div class="file-icon">
-          <span class="ico ${iconCls}">${iconSvg(iconCls)}</span>
-          <span class="fname">${escapeHtml(item.name)} ${item.type === 'folder' ? `(${item.fileCount} 项)` : ''}</span>
-        </div>
-      </td>
-      <td class="col-size">${formatSize(item.size)}</td>
-      <td class="trash-col-deleted">${formatTime(item.deletedAt)}</td>
-      <td class="trash-col-original">${escapeHtml(item.originalPath)}</td>
-      <td class="col-actions">
-        <div class="trash-actions">
-          <button class="btn btn-secondary btn-sm" data-action="restore" data-id="${item.id}">恢复</button>
-          <button class="btn btn-danger btn-sm" data-action="purge" data-id="${item.id}">彻底删除</button>
-        </div>
-      </td>
-    `;
-    tbody.appendChild(tr);
-  }
-
-  bindSelectAll();
-  tbody.querySelectorAll('.row-check').forEach(cb => {
-    cb.onchange = () => {
-      if (cb.checked) selectedPaths.add(cb.dataset.id);
-      else selectedPaths.delete(cb.dataset.id);
-      cb.closest('tr').classList.toggle('selected', cb.checked);
-      updateBatchDeleteBtn();
-    };
-  });
-  tbody.querySelectorAll('[data-action]').forEach(btn => {
-    btn.onclick = (e) => {
-      e.stopPropagation();
-      handleTrashAction(btn.dataset.action, btn.dataset.id);
-    };
-  });
-}
-
 function bindSelectAll() {
   const selectAll = $('#select-all');
   if (selectAll) {
@@ -691,45 +545,13 @@ function bindSelectAll() {
   }
 }
 
-async function handleTrashAction(action, id) {
-  if (action === 'restore') {
-    try {
-      await apiRestoreTrash(id);
-      toast('已恢复');
-      loadList();
-    } catch (e) { toast(e.message, 'error'); }
-  } else if (action === 'purge') {
-    if (!confirm('确定彻底删除？此操作不可恢复。')) return;
-    try {
-      await apiPurgeTrash(id);
-      toast('已彻底删除');
-      // 先从 DOM 移除，避免 KV 最终一致性导致列表仍显示已删项
-      const row = document.querySelector(`[data-id="${CSS.escape(id)}"]`);
-      if (row) row.remove();
-      // 延迟刷新，等 KV 传播
-      setTimeout(() => loadList(), 500);
-    } catch (e) { toast(e.message, 'error'); }
-  }
-}
-
-async function emptyTrash() {
-  if (!confirm('确定清空回收站？所有文件将被彻底删除，不可恢复。')) return;
-  try {
-    const result = await apiEmptyTrash();
-    toast(`已清空，删除 ${result.removedObjects} 个对象`);
-    // 直接清空表格，避免 KV 最终一致性延迟
-    $('#file-tbody').innerHTML = `<tr><td colspan="5" class="nd-empty"><div>回收站为空</div></td></tr>`;
-    setTimeout(() => loadList(), 800);
-  } catch (e) { toast(e.message, 'error'); }
-}
-
 function renderTable(items) {
   const tbody = $('#file-tbody');
   const thead = tbody.closest('table').querySelector('thead tr');
   selectedPaths.clear();
   updateBatchDeleteBtn();
 
-  // 恢复文件列表表头
+  // 表头
   thead.innerHTML = `
     <th style="width:36px"><input type="checkbox" id="select-all"></th>
     <th class="col-name" data-sort="name">名称</th>
@@ -766,11 +588,11 @@ function renderTable(items) {
     const encodedPath = encodeURIComponent(item.path);
 
     tr.innerHTML = `
-      <td><input type="checkbox" class="row-check" data-path="${item.path}"></td>
+      <td><input type="checkbox" class="row-check" data-path="${escapeHtml(item.path)}"></td>
       <td class="col-name">
         <div class="file-icon">
           <span class="ico ${iconCls}">${iconSvg(isFolder ? 'folder' : iconCls)}</span>
-          <span class="fname ${isFolder ? 'is-folder' : ''}" data-path="${item.path}">${escapeHtml(item.name)}</span>
+          <span class="fname ${isFolder ? 'is-folder' : ''}" data-path="${escapeHtml(item.path)}">${escapeHtml(item.name)}</span>
         </div>
       </td>
       <td class="col-size">${isFolder ? '-' : formatSize(item.size)}</td>
@@ -778,24 +600,24 @@ function renderTable(items) {
       <td class="col-actions">
         <div class="nd-row-actions">
           ${isFolder ? `
-            <button class="btn btn-ghost btn-icon btn-sm" data-action="download" data-path="${item.path}" title="下载ZIP">
+            <button class="btn btn-ghost btn-icon btn-sm" data-action="download" data-path="${escapeHtml(item.path)}" title="下载ZIP">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </button>
           ` : `
-            <button class="btn btn-ghost btn-icon btn-sm" data-action="preview" data-path="${item.path}" data-name="${escapeHtml(item.name)}" data-ct="${item.contentType || ''}" title="预览">
+            <button class="btn btn-ghost btn-icon btn-sm" data-action="preview" data-path="${escapeHtml(item.path)}" data-name="${escapeHtml(item.name)}" data-ct="${escapeHtml(item.contentType || '')}" title="预览">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
             </button>
             <a class="btn btn-ghost btn-icon btn-sm" href="/netdisk/api/download?path=${encodedPath}" title="下载" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </a>
           `}
-          <button class="btn btn-ghost btn-icon btn-sm" data-action="share" data-path="${item.path}" title="分享">
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="share" data-path="${escapeHtml(item.path)}" title="分享">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
           </button>
-          <button class="btn btn-ghost btn-icon btn-sm" data-action="rename" data-path="${item.path}" data-name="${escapeHtml(item.name)}" title="重命名">
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="rename" data-path="${escapeHtml(item.path)}" data-name="${escapeHtml(item.name)}" title="重命名">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
           </button>
-          <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-path="${item.path}" title="删除">
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-path="${escapeHtml(item.path)}" title="删除">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
           </button>
         </div>
@@ -1197,21 +1019,10 @@ async function confirmRename() {
 }
 
 async function deleteItem(path) {
-  if (viewMode === 'trash') {
-    if (!confirm('确定彻底删除？此操作不可恢复。')) return;
-    try {
-      await apiPurgeTrash(path);
-      toast('已彻底删除');
-      const row = document.querySelector(`[data-id="${CSS.escape(path)}"]`);
-      if (row) row.remove();
-      setTimeout(() => loadList(), 500);
-    } catch (e) { toast(e.message, 'error'); }
-    return;
-  }
-  if (!confirm('确定将 "' + path + '" 移到回收站？\n文件夹下的所有内容将被一并移动。')) return;
+  if (!confirm('确定删除 "' + path + '"？\n文件夹下的所有内容将被一并删除，此操作不可恢复。')) return;
   try {
     await apiCall('/netdisk/api/delete?path=' + encodeURIComponent(path), 'DELETE');
-    toast('已移到回收站');
+    toast('已删除');
     loadList();
   } catch (e) { toast(e.message, 'error'); }
 }
@@ -1219,27 +1030,13 @@ async function deleteItem(path) {
 async function batchDelete() {
   if (selectedPaths.size === 0) return;
 
-  if (viewMode === 'trash') {
-    if (!confirm(`确定彻底删除选中的 ${selectedPaths.size} 项？此操作不可恢复。`)) return;
-    for (const id of selectedPaths) {
-      try {
-        await apiPurgeTrash(id);
-        const row = document.querySelector(`[data-id="${CSS.escape(id)}"]`);
-        if (row) row.remove();
-      } catch (e) { console.error(e); }
-    }
-    toast('批量彻底删除完成');
-    setTimeout(() => loadList(), 500);
-    return;
-  }
-
-  if (!confirm(`确定将选中的 ${selectedPaths.size} 项移到回收站？`)) return;
+  if (!confirm(`确定删除选中的 ${selectedPaths.size} 项？此操作不可恢复。`)) return;
   for (const path of selectedPaths) {
     try {
       await apiCall('/netdisk/api/delete?path=' + encodeURIComponent(path), 'DELETE');
     } catch (e) { console.error(e); }
   }
-  toast('已移到回收站');
+  toast('批量删除完成');
   loadList();
 }
 
@@ -1288,16 +1085,6 @@ $('#file-input').onchange = (e) => { handleFiles(e.target.files); e.target.value
 $('#btn-mkdir').onclick = showMkdirModal;
 $('#btn-refresh').onclick = loadList;
 $('#btn-batch-delete').onclick = batchDelete;
-$('#btn-trash').onclick = () => {
-  if (viewMode === 'trash') {
-    viewMode = 'files';
-  } else {
-    viewMode = 'trash';
-  }
-  currentPath = '';
-  selectedPaths.clear();
-  loadList();
-};
 $('#rename-confirm').onclick = confirmRename;
 $('#share-create').onclick = createShare;
 $('#share-copy').onclick = () => {
@@ -1332,7 +1119,7 @@ document.addEventListener('drop', (e) => {
   e.preventDefault();
   if (e.target.closest('.nd-dropzone')) return; // 已由 dropzone 处理
   const files = e.dataTransfer.files;
-  if (files && files.length && viewMode === 'files') handleFiles(files);
+  if (files && files.length) handleFiles(files);
 });
 
 // 关闭模态
@@ -1354,8 +1141,9 @@ loadList();
 // 加载站点配置
 fetch('/api/config').then(r => r.json()).then(cfg => {
   if (cfg.siteName) {
-    $('#site-name').textContent = (cfg.siteName || '网盘') + ' · 网盘';
-    document.title = (cfg.siteName || '网盘') + ' | 网盘';
+    var displayName = cfg.siteName || '网盘';
+    $('#site-name').textContent = cfg.siteName ? cfg.siteName + ' · 网盘' : '网盘';
+    document.title = cfg.siteName ? cfg.siteName + ' | 网盘' : '网盘';
   }
   // 初始化存储选择器
   if (cfg.storage && cfg.storage.available) {
@@ -1372,7 +1160,7 @@ fetch('/api/config').then(r => r.json()).then(cfg => {
       select.appendChild(opt);
     });
     if (cfg.storage.available.length > 1) {
-      $('#storage-select-wrap').hidden = false;
+      $('#storage-select-wrap').style.display = '';
     }
   }
 }).catch(() => {});

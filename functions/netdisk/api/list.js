@@ -1,6 +1,5 @@
 import { jsonResponse } from '../../utils/http.js';
 import { normalizeDirPrefix, parseListResult, displayName } from '../../utils/r2-paths.js';
-import { trashR2Prefix } from '../../utils/trash.js';
 
 // 列目录：GET /netdisk/api/list?path=docs&cursor=xxx
 // 返回当前目录下的子目录和文件列表。
@@ -42,19 +41,15 @@ export async function onRequestGet(context) {
     })),
   ];
 
-  // 回收站内部对象不在正常列表中显示
-  const trashPrefix = trashR2Prefix();
-  const visibleItems = items.filter(item => !item.path.startsWith(trashPrefix));
-
   // 排序：文件夹优先，再按名称
-  visibleItems.sort((a, b) => {
+  items.sort((a, b) => {
     if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
     return a.name.localeCompare(b.name, 'zh');
   });
 
   return jsonResponse({
     path: rawPath,
-    items: visibleItems,
+    items,
     truncated: result.truncated,
     cursor: result.truncated ? result.cursor : null,
   });

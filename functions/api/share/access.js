@@ -283,7 +283,7 @@ async function downloadSharedFolderZip(env, meta) {
     status: 200,
     headers: {
       'Content-Type': 'application/zip',
-      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent('share.zip')}`,
+      'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(basename(meta.path) || 'share')}.zip`,
     },
   });
 }

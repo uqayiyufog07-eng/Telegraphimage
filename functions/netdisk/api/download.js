@@ -127,7 +127,6 @@ async function streamFolderZip(env, dirPrefix, fileObjects, rawPath) {
     headers: {
       'Content-Type': 'application/zip',
       'Content-Disposition': `attachment; filename*=UTF-8''${encodeURIComponent(zipName)}`,
-      'Transfer-Encoding': 'chunked',
     },
   });
 }

@@ -51,8 +51,8 @@ export async function onRequestPost(context) {
     if (!src) continue;
 
     await env.img_r2.put(newKey, src.body, {
-      httpMetadata: obj.httpMetadata || {},
-      customMetadata: obj.customMetadata || {},
+      httpMetadata: src.httpMetadata || {},
+      customMetadata: src.customMetadata || {},
     });
     movedKeys.push({ from: obj.key, to: newKey });
   }

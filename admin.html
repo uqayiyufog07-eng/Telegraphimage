@@ -299,22 +299,22 @@
     var tdPreview = document.createElement('td');
     tdPreview.className = 'cell-preview';
     tdPreview.style.textAlign = 'center';
-    if (row.name.indexOf('.mp4') > 0) {
+    if (row.name.toLowerCase().endsWith('.mp4')) {
       var video = document.createElement('video');
       video.controls = true;
       video.preload = 'none';
       var source = document.createElement('source');
-      source.src = '/file/' + row.name;
+      source.src = '/file/' + encodeURIComponent(row.name);
       source.type = 'video/mp4';
       video.appendChild(source);
       tdPreview.appendChild(video);
     } else {
       var img = document.createElement('img');
       img.loading = 'lazy';
-      img.src = '/file/' + row.name;
+      img.src = '/file/' + encodeURIComponent(row.name);
       img.alt = row.name;
       img.onerror = function () { img.style.visibility = 'hidden'; };
-      img.addEventListener('click', function () { openLightbox('/file/' + row.name); });
+      img.addEventListener('click', function () { openLightbox('/file/' + encodeURIComponent(row.name)); });
       tdPreview.appendChild(img);
     }
     tr.appendChild(tdPreview);
@@ -391,14 +391,14 @@
   function doCopy(row) {
     var md = row.metadata && typeof row.metadata === 'object' ? row.metadata : null;
     var shortId = md && md.shortId;
-    var text = location.origin + '/file/' + (shortId || row.name);
+    var text = location.origin + '/file/' + encodeURIComponent(shortId || row.name);
     copyText(text, function () { showToast('复制文件链接成功~'); });
   }
 
   function doWhite(row, tr, tdTags) {
     if (!confirm('确认加入白名单吗?')) return;
-    fetch('./api/manage/white/' + row.name, OPTS)
-      .then(function (r) { return r.text(); })
+    fetch('./api/manage/white/' + encodeURIComponent(row.name), OPTS)
+      .then(function (r) { return r.json(); })
       .then(function (result) {
         var target = findRow(row.name);
         if (target) target.metadata = result;
@@ -411,8 +411,8 @@
 
   function doBlock(row, tr, tdTags) {
     if (!confirm('确认加入黑名单吗?')) return;
-    fetch('./api/manage/block/' + row.name, OPTS)
-      .then(function (r) { return r.text(); })
+    fetch('./api/manage/block/' + encodeURIComponent(row.name), OPTS)
+      .then(function (r) { return r.json(); })
       .then(function (result) {
         var target = findRow(row.name);
         if (target) target.metadata = result;
@@ -425,8 +425,8 @@
 
   function doDelete(row, tr) {
     if (!confirm('确认从后台列表删除该记录吗？这不会删除源文件；如需禁止访问请加入黑名单。')) return;
-    fetch('./api/manage/delete/' + row.name, OPTS)
-      .then(function (r) { return r.text(); })
+    fetch('./api/manage/delete/' + encodeURIComponent(row.name), OPTS)
+      .then(function (r) { return r.json(); })
       .then(function () {
         rows = rows.filter(function (item) { return item.name !== row.name; });
         tr.remove();

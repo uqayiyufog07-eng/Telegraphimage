@@ -460,7 +460,7 @@ function renderShare(data) {
     let previewHtml = '';
     if (['png','jpg','jpeg','gif','webp','avif','bmp','svg','ico','apng','tiff','tif','heic','heif','jxl'].includes(ext)) {
       previewHtml = `<div class="preview-box"><img src="${fileUrl}" alt="${escapeHtml(data.name)}"></div>`;
-    } else if (['mp4','m4v','mov','webm','ogv'].includes(ext)) {
+    } else if (['mp4','m4v','mov','webm','ogv','mkv','ts','3gp'].includes(ext)) {
       previewHtml = `<div class="preview-box"><video src="${fileUrl}" controls></video></div>`;
     } else if (['mp3','m4a','ogg','wav','flac','aac','opus','wma','aiff','aif','mka'].includes(ext)) {
       previewHtml = `<div class="preview-box"><audio src="${fileUrl}" controls></audio></div>`;
@@ -504,7 +504,7 @@ function renderShare(data) {
           el.textContent = text;
         }
         if (box) box.replaceWith(el);
-        else $('#body').insertBefore(el, $('#body').firstChild);
+        else $('#body').appendChild(el);
       }).catch(() => {});
     }
 

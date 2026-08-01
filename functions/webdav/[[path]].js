@@ -413,8 +413,8 @@ async function handleMove(context, isCopy) {
     const src = await env.img_r2.get(obj.key);
     if (!src) continue;
     await env.img_r2.put(newKey, src.body, {
-      httpMetadata: obj.httpMetadata || {},
-      customMetadata: obj.customMetadata || {},
+      httpMetadata: src.httpMetadata || {},
+      customMetadata: src.customMetadata || {},
     });
   }
 

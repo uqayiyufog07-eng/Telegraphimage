@@ -30,6 +30,7 @@
 .status-bar .dot.connecting { background: #3b82f6; animation: pulse 1s infinite; }
 .status-bar .dot.connected { background: #22c55e; }
 .status-bar .dot.error { background: #ef4444; }
+.status-bar .dot.warning { background: #f59e0b; animation: pulse 1.5s infinite; }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
 
 /* 房间码展示 */
@@ -129,7 +130,7 @@
         <div class="code" id="room-code-display">------</div>
         <div class="share-link-box">
           <input type="text" id="share-link" readonly onclick="this.select()">
-          <button class="btn btn-sm" onclick="copyShareLink()">复制链接</button>
+          <button class="btn btn-sm" onclick="copyShareLink(event)">复制链接</button>
         </div>
         <p style="margin-top:10px;font-size:13px;color:var(--c-ink-soft);">将链接发给对方，打开即可互传文件</p>
       </div>
@@ -444,7 +445,7 @@ function updateConnectionState() {
   } else if (state === 'connecting' || state === 'new') {
     setStatus('connecting', '正在建立 P2P 连接...');
   } else if (state === 'disconnected') {
-    setStatus('error', '连接已断开');
+    setStatus('warning', '连接暂时中断，正在尝试恢复...');
   } else if (state === 'failed') {
     clearConnectTimer();
     setStatus('error', '连接失败 — 可能 NAT 穿透不成功');
@@ -477,17 +478,23 @@ function setupDataChannel(channel) {
   channel.onmessage = (e) => {
     const data = e.data;
     if (typeof data === 'string') {
-      const msg = JSON.parse(data);
+      let msg;
+      try {
+        msg = JSON.parse(data);
+      } catch (e) {
+        console.warn('Non-JSON message received:', data);
+        return;
+      }
       if (msg.type === 'file-start') {
         recvMeta = msg;
         recvChunks = [];
         recvSize = 0;
-        addReceivedFileItem(msg.name, msg.size);
+        addReceivedFileItem(msg.name, msg.size, msg.fileId);
       } else if (msg.type === 'file-end') {
         if (recvMeta) {
           const blob = new Blob(recvChunks, { type: recvMeta.mime || 'application/octet-stream' });
-          offerDownload(recvMeta.name, blob);
-          updateFileItemStatus(recvMeta.name, 'received', '已接收');
+          offerDownload(recvMeta.fileId, blob);
+          updateFileItemStatus(recvMeta.fileId, 'received', '已接收');
           recvMeta = null;
           recvChunks = [];
           recvSize = 0;
@@ -500,7 +507,7 @@ function setupDataChannel(channel) {
       if (recvMeta) {
         recvChunks.push(data);
         recvSize += data.byteLength;
-        updateFileProgress(recvMeta.name, recvSize, recvMeta.size);
+        updateFileProgress(recvMeta.fileId, recvSize, recvMeta.size);
       }
     }
   };
@@ -527,7 +534,7 @@ async function sendOneFile(file) {
   // 发送文件元信息
   dc.send(JSON.stringify({
     type: 'file-start',
-    id: fileId,
+    fileId: fileId,
     name: file.name,
     size: file.size,
     mime: file.type,
@@ -553,15 +560,15 @@ async function sendOneFile(file) {
         dc.send(chunk);
         chunkOffset += chunk.length;
         offset += chunk.length;
-        updateFileProgress(file.name, offset, file.size);
+        updateFileProgress(fileId, offset, file.size);
       }
     }
 
     // 发送结束标记
-    dc.send(JSON.stringify({ type: 'file-end', id: fileId }));
-    updateFileItemStatus(file.name, 'done', '已发送');
+    dc.send(JSON.stringify({ type: 'file-end', fileId: fileId }));
+    updateFileItemStatus(fileId, 'done', '已发送');
   } catch (e) {
-    updateFileItemStatus(file.name, 'error', '发送失败');
+    updateFileItemStatus(fileId, 'error', '发送失败');
     console.error('Send error:', e);
   }
 }
@@ -584,11 +591,11 @@ function addSentFileItem(name, size, id) {
   return row;
 }
 
-function addReceivedFileItem(name, size) {
+function addReceivedFileItem(name, size, id) {
   const list = $('#file-list');
   const row = document.createElement('div');
   row.className = 'file-row';
-  row.dataset.fileName = name;
+  row.dataset.fileId = id;
   row.innerHTML = `
     <div style="flex:1;min-width:0;">
       <div class="fname">${escapeHtml(name)}</div>
@@ -601,11 +608,10 @@ function addReceivedFileItem(name, size) {
   return row;
 }
 
-function updateFileProgress(name, current, total) {
+function updateFileProgress(fileId, current, total) {
   const rows = document.querySelectorAll('.file-row');
   for (const row of rows) {
-    const fname = row.querySelector('.fname');
-    if (fname && fname.textContent === name) {
+    if (row.dataset.fileId === fileId) {
       const pct = total > 0 ? Math.min(100, (current / total) * 100) : 0;
       row.querySelector('.bar').style.width = pct + '%';
       return;
@@ -613,11 +619,10 @@ function updateFileProgress(name, current, total) {
   }
 }
 
-function updateFileItemStatus(name, status, text) {
+function updateFileItemStatus(fileId, status, text) {
   const rows = document.querySelectorAll('.file-row');
   for (const row of rows) {
-    const fname = row.querySelector('.fname');
-    if (fname && fname.textContent === name) {
+    if (row.dataset.fileId === fileId) {
       const st = row.querySelector('.fstatus');
       st.className = 'fstatus ' + status;
       st.textContent = text;
@@ -629,11 +634,12 @@ function updateFileItemStatus(name, status, text) {
   }
 }
 
-function offerDownload(name, blob) {
+function offerDownload(fileId, blob) {
   const rows = document.querySelectorAll('.file-row');
   for (const row of rows) {
-    const fname = row.querySelector('.fname');
-    if (fname && fname.textContent === name) {
+    if (row.dataset.fileId === fileId) {
+      const fname = row.querySelector('.fname');
+      const name = fname ? fname.textContent : 'file';
       const url = URL.createObjectURL(blob);
       const st = row.querySelector('.fstatus');
       st.innerHTML = '';
@@ -662,12 +668,12 @@ function formatSize(b) {
   while(n>=1024&&i<u.length-1){n/=1024;i++;}
   return n.toFixed(i===0?0:1)+' '+u[i];
 }
-function copyShareLink() {
+function copyShareLink(e) {
   const input = $('#share-link');
   input.select();
   if (navigator.clipboard) {
     navigator.clipboard.writeText(input.value).then(() => {
-      const btn = event.target;
+      const btn = e.target;
       const orig = btn.textContent;
       btn.textContent = '已复制';
       setTimeout(() => btn.textContent = orig, 1500);

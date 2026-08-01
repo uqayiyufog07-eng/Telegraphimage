@@ -94,7 +94,7 @@ async function tryDedupPut(env, hash, key, fileName, fileSize, contentType) {
   // 相同内容在不同路径：服务端复制已有对象，避免重复上传存储
   const src = await env.img_r2.get(existing.key);
   if (!src) {
-    // 源对象已不存在（被删除/移入回收站），清理失效记录
+    // 源对象已不存在（被删除），清理失效记录
     await deleteDedupEntry(env, ndDedupKey(hash));
     return null;
   }

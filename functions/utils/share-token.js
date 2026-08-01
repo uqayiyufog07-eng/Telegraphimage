@@ -92,11 +92,11 @@ export function isExpired(expiresAt) {
 }
 
 // 创建分享元数据对象
-export function createShareMetadata({ path, type, password, expiresAt }) {
+export function createShareMetadata({ path, type, passwordHash, expiresAt }) {
   return {
     path: String(path || ''),
     type: type === 'folder' ? 'folder' : 'file',
-    passwordHash: password || '',  // 应为已 hash 的值
+    passwordHash: passwordHash || '',  // 应为已 hash 的值
     expiresAt: Number(expiresAt) || 0,
     createdAt: Math.floor(Date.now() / 1000),
     downloadCount: 0,

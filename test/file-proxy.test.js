@@ -35,7 +35,7 @@ describe('file proxy function', function () {
     const img_url = createMockKV();
 
     fetchMock = installFetchMock(async input => {
-      assert.strictEqual(String(input), 'https://telegra.ph//file/cat.png?size=large');
+      assert.strictEqual(String(input), 'https://telegra.ph/file/cat.png?size=large');
       return new Response('image-body', {
         status: 200,
         headers: { 'Content-Type': 'image/png' },
@@ -67,7 +67,7 @@ describe('file proxy function', function () {
     const onRequest = await getOnRequest();
 
     fetchMock = installFetchMock(async input => {
-      assert.strictEqual(String(input), 'https://telegra.ph//file/cat.png');
+      assert.strictEqual(String(input), 'https://telegra.ph/file/cat.png');
       return new Response('image-body', {
         status: 200,
         headers: { 'Content-Type': 'image/png' },
@@ -90,7 +90,7 @@ describe('file proxy function', function () {
     const onRequest = await getOnRequest();
 
     fetchMock = installFetchMock(async input => {
-      assert.strictEqual(String(input), 'https://telegra.ph//file/cat.png');
+      assert.strictEqual(String(input), 'https://telegra.ph/file/cat.png');
       return new Response('image-body', {
         status: 200,
         headers: { 'Content-Type': 'application/octet-stream' },
@@ -151,7 +151,7 @@ describe('file proxy function', function () {
     const onRequest = await getOnRequest();
 
     fetchMock = installFetchMock(async input => {
-      assert.strictEqual(String(input), 'https://telegra.ph//file/archive.bin');
+      assert.strictEqual(String(input), 'https://telegra.ph/file/archive.bin');
       return new Response('bin-body', {
         status: 200,
         headers: { 'Content-Type': 'application/octet-stream' },
@@ -195,7 +195,7 @@ describe('file proxy function', function () {
 
     fetchMock = installFetchMock(async (input, init, calls) => {
       if (calls.length === 1) {
-        assert.strictEqual(String(input), 'https://telegra.ph//file/cat.png');
+        assert.strictEqual(String(input), 'https://telegra.ph/file/cat.png');
         return new Response('image-body', { status: 200 });
       }
 
@@ -222,7 +222,7 @@ describe('file proxy function', function () {
 
     fetchMock = installFetchMock(async (input, init, calls) => {
       if (calls.length === 1) {
-        assert.strictEqual(String(input), 'https://telegra.ph//file/cat.png');
+        assert.strictEqual(String(input), 'https://telegra.ph/file/cat.png');
         return new Response('image-body', { status: 200 });
       }
 
@@ -287,7 +287,7 @@ describe('file proxy function', function () {
     });
 
     fetchMock = installFetchMock(async input => {
-      assert.strictEqual(String(input), 'https://telegra.ph//file/cat.png');
+      assert.strictEqual(String(input), 'https://telegra.ph/file/cat.png');
       return new Response('image-body', {
         status: 200,
         headers: { 'Content-Type': 'image/png' },
@@ -348,7 +348,7 @@ describe('file proxy function', function () {
     const img_url = createMockKV();
 
     fetchMock = installFetchMock(async input => {
-      assert.strictEqual(String(input), 'https://telegra.ph//file/zzz999');
+      assert.strictEqual(String(input), 'https://telegra.ph/file/zzz999');
       return new Response('not-found', { status: 404 });
     });
 

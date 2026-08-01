@@ -70,7 +70,9 @@ export function telemetryData(context) {
     } catch (e) {
       console.log(e);
     } finally {
-      context.data.transaction.finish();
+      if (context.data.transaction) {
+        context.data.transaction.finish();
+      }
     }
   }
   return context.next();

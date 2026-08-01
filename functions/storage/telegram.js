@@ -49,5 +49,5 @@ async function resolveFileUrl(env, url, fileId) {
         return `https://api.telegram.org/file/bot${env.TG_Bot_Token}/${filePath}`;
     }
 
-    return 'https://telegra.ph//file/' + fileId + url.search;
+    return 'https://telegra.ph/file/' + fileId + url.search;
 }
