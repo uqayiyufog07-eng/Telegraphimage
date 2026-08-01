@@ -14,7 +14,7 @@
 - [获取 Telegram Bot Token 和 Chat ID](#如何获取telegram的bot_token和chat_id)
 - [配置项一览](#配置项一览)：全部环境变量与 KV 绑定
 - [功能特性](#功能特性)
-- [可选功能开启指南](#可选功能开启指南)：后台管理 / 上传保护 / 短链接 / 图片审查 / 防盗链 / R2 存储 / 站点自定义 / 白名单模式 / 自定义域名
+- [可选功能开启指南](#可选功能开启指南)：后台管理 / 上传保护 / 短链接 / 图片审查 / 防盗链 / R2 存储 / 站点自定义 / 白名单模式 / 自定义域名 / 网盘功能 / WebDAV 访问
 - [API 上传](#api-上传)
 - [使用限制与免费额度](#使用限制与免费额度)
 - [已经部署了的，如何更新？](#已经部署了的如何更新)
@@ -91,6 +91,8 @@
 | `SITE_BACKGROUND`   | `https://.../bg.jpg`   | 首页背景图 URL。 |
 | `HIDE_ADMIN_ENTRY`  | `true`                 | 隐藏首页上的后台入口链接（/admin 页面本身仍可访问）。 |
 | `WhiteList_Mode`    | `true`                 | 白名单模式：只有加入白名单的图片才能被加载。 |
+| `WEBDAV_USER`     | `davuser`                 | WebDAV 访问用户名（可选）。未设置时回退到 `BASIC_USER`/`BASIC_PASS`。网盘与 WebDAV 功能均需绑定 `img_r2`。 |
+| `WEBDAV_PASS`     | `davpass`                 | WebDAV 访问密码，需和 `WEBDAV_USER` 同时设置。 |
 | `disable_telemetry` | `true`                 | 退出远端遥测。 |
 
 绑定（`设置`->`函数`）：
@@ -122,6 +124,10 @@
 9.批量上传，支持拖拽和粘贴上传、逐文件进度显示，以及 URL / Markdown / BBCode / HTML 四种格式一键复制；可选的 Referer 白名单防盗链
 
 10.部署自检：配置缺失时首页会直接指出缺哪个环境变量或绑定、去哪里补，而不是等到第一次上传才失败
+
+11.**网盘功能**：基于 R2 的目录式文件管理，支持文件/文件夹上传、在线预览（图片/视频/音频/PDF/文本）、下载（含文件夹流式 ZIP 打包）、重命名、移动、删除，以及带密码和有效期的文件分享
+
+12.**WebDAV 访问**：完整 WebDAV 协议支持（PROPFIND/GET/PUT/DELETE/MKCOL/MOVE/COPY），可挂载为 Windows/macOS/Linux 网络磁盘或手机 WebDAV 客户端，独立账号鉴权
 
 ## 可选功能开启指南
 
@@ -203,6 +209,93 @@
 在 pages 的自定义域里面，绑定 cloudflare 中存在的域名，在 cloudflare 托管的域名，自动会修改 dns 记录
 ![2](https://telegraph-image.pages.dev/file/29546e3a7465a01281ee2.png)
 
+## 网盘功能
+
+在图床基础上，本项目新增了完整的网盘能力，支持目录式文件管理。网盘功能**仅基于 R2 存储**，原有图床（Telegram/R2）逻辑完全不变。
+
+### 开启方式
+
+网盘功能依赖 `img_r2` R2 存储桶绑定（与图床的 R2 存储共用同一绑定）：
+
+1. 在`设置`->`函数`->`R2 存储桶绑定`中以变量名称 `img_r2` 绑定一个 R2 存储桶（若图床已绑定则无需重复操作）
+2. 重新部署后访问 `https://你的域名/netdisk` 即可打开网盘界面
+
+> 网盘页面的访问鉴权与后台管理一致：设置了 `BASIC_USER`/`BASIC_PASS` 时需登录，未设置则公开访问。
+
+### 功能说明
+
+- **文件管理**：目录浏览（面包屑导航）、新建文件夹、重命名、移动、删除
+- **文件上传**：支持单文件/批量上传、拖拽上传、逐文件进度显示
+- **在线预览**：图片、视频、音频、PDF、文本文件可直接在浏览器内预览
+- **文件下载**：单文件下载 + 文件夹流式 ZIP 打包下载（使用 fflate，超过 100MB 的单文件会跳过打包以避免 Workers 内存超限）
+- **文件分享**：生成分享链接，支持设置访问密码和有效期（1 天/7 天/30 天/永久），可分享单文件或整个文件夹；分享链接形如 `/share/{token}`
+
+### API 接口
+
+网盘提供 REST API（需 BASIC 鉴权）：
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/netdisk/api/list?path=xxx` | 列目录 |
+| POST | `/netdisk/api/upload?path=xxx` | 上传文件（multipart/form-data） |
+| POST | `/netdisk/api/mkdir?path=xxx` | 创建文件夹 |
+| DELETE | `/netdisk/api/delete?path=xxx` | 删除文件/文件夹 |
+| POST | `/netdisk/api/rename` | 重命名/移动（body: `{from, to}`） |
+| GET | `/netdisk/api/download?path=xxx` | 下载文件 |
+| GET | `/netdisk/api/download?path=xxx&zip=true` | 下载文件夹 ZIP |
+| POST | `/netdisk/api/share` | 创建分享 |
+| GET | `/netdisk/api/share?token=xxx` | 获取分享信息 |
+| DELETE | `/netdisk/api/share?token=xxx` | 删除分享 |
+
+分享访问为公开接口（无需登录）：
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/share/access?token=xxx` | 获取分享内容（带密码时需 `&password=xxx`） |
+| POST | `/api/share/access?token=xxx` | 校验密码（body: `{password}`） |
+| GET | `/api/share/access?token=xxx&download=file.txt` | 下载分享中的文件 |
+| GET | `/api/share/access?token=xxx&zip=true` | 下载分享文件夹 ZIP |
+
+## WebDAV 访问
+
+网盘内容可通过 WebDAV 协议访问，挂载为系统磁盘或配合手机客户端（如 Documents、FE 文件浏览器）使用。
+
+### 开启方式
+
+WebDAV 同样依赖 `img_r2` 绑定。鉴权使用独立账号：
+
+| 变量名称 | 值 |
+| ----------- | ----------- |
+| `WEBDAV_USER` | WebDAV 访问用户名 |
+| `WEBDAV_PASS` | WebDAV 访问密码 |
+
+未设置 `WEBDAV_USER`/`WEBDAV_PASS` 时，回退使用 `BASIC_USER`/`BASIC_PASS`；两者都未设置则公开访问。
+
+### 挂载地址
+
+```
+https://你的域名/webdav
+```
+
+### 客户端配置示例
+
+**Windows**（映射网络驱动器）：
+1. 打开"此电脑" -> 映射网络驱动器
+2. 地址填 `https://你的域名/webdav`
+3. 勾选"使用其他凭据"，输入 WebDAV 账号密码
+
+**macOS**：Finder -> 前往 -> 连接服务器（⌘K）-> 输入 `https://你的域名/webdav`
+
+**Linux**：可使用 `rclone mount` 或 `davfs2` 挂载
+
+**手机客户端**：Documents（iOS）、FE 文件浏览器（Android）等，添加 WebDAV 连接即可
+
+### 支持的 WebDAV 方法
+
+`OPTIONS`、`PROPFIND`（支持 Depth: 0/1/infinity，infinity 最多递归 3 层）、`GET`、`HEAD`、`PUT`、`DELETE`、`MKCOL`、`MOVE`、`COPY`、`PROPPATCH`
+
+> 注意：WebDAV 上传的单个文件大小受 R2 限制（最大 5TB），但 Workers 响应需流式处理。大文件上传建议直接用 WebDAV 客户端而非网盘网页。
+
 ## API 上传
 
 上传接口为 `POST /upload`，使用 `multipart/form-data` 格式，文件字段名为 `file`：
@@ -276,6 +369,7 @@ curl -u uploader:strong-password -F "file=@/path/to/image.png" https://your.doma
 ```bash
 npm install
 npm start      # 启动本地开发服务（wrangler pages dev，端口 8080，后台账号密码默认为 admin/123）
+npm run start:netdisk   # 同上，额外预置 WEBDAV_USER=dav WEBDAV_PASS=davpass，便于本地测试 WebDAV
 npm test       # 运行单元测试（mocha），CI 跑的也是这个
 ```
 
@@ -301,6 +395,14 @@ npm run test:e2e   # 终端 2
 Hostloc @feixiang 和@乌拉擦 提供的思路和代码
 
 ## 更新日志
+2026 年 7 月 31 日--网盘功能与 WebDAV 访问
+
+- 新增**网盘功能**：基于 R2 的目录式文件管理，访问 `/netdisk` 即可使用。支持文件夹/文件上传（含拖拽、批量、进度显示）、在线预览（图片/视频/音频/PDF/文本）、单文件与文件夹 ZIP 打包下载（fflate 流式生成）、重命名、移动、删除
+- 新增**文件分享**：生成带 token 的分享链接，支持访问密码和有效期（1/7/30 天或永久），可分享单文件或整个文件夹，分享页 `/share/{token}`
+- 新增**WebDAV 访问**：完整 WebDAV 协议（PROPFIND/GET/PUT/DELETE/MKCOL/MOVE/COPY），独立 `WEBDAV_USER`/`WEBDAV_PASS` 鉴权（回退 BASIC 账号），可挂载为系统磁盘
+- 新增环境变量 `WEBDAV_USER`、`WEBDAV_PASS`；`/api/config` 新增 `netdiskEnabled`/`webdavEnabled`/`webdavUrl` 状态字段
+- 原有图床功能（`/upload`、`/file/[id]`、`/admin`、Telegram/R2 存储）完全不变，网盘与图床共用 `img_r2` 绑定但存储路径互不干扰
+
 2026 年 7 月 25 日--部署自检与测试基建
 
 - 新增**部署自检**：`GET /api/config` 现在会返回 `ready` 与 `setup` 状态，首页在配置不完整时直接显示需要补哪个环境变量/绑定以及在哪里设置（只返回状态枚举，不回显任何配置值）

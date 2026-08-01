@@ -256,6 +256,7 @@ footer a:hover { background: var(--c-yellow); }
       <span id="brand-mini-name">Telegraph-Image</span>
     </a>
     <nav>
+      <a class="btn btn-sm" id="netdisk-link" href="/netdisk"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>网盘</span></a>
       <a class="btn btn-sm" id="admin-link" href="/admin.html"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/></svg><span>管理后台</span></a>
       <a class="btn btn-sm" href="https://github.com/cf-pages/Telegraph-Image" target="_blank" rel="noopener"><svg class="icon icon-sm" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.55v-2.1c-3.2.7-3.88-1.4-3.88-1.4-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .96-.3 3.15 1.18a10.9 10.9 0 0 1 5.74 0c2.18-1.48 3.14-1.18 3.14-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.69 5.4-5.25 5.69.41.36.78 1.06.78 2.14v3.17c0 .3.2.66.79.55A11.5 11.5 0 0 0 23.5 12A11.5 11.5 0 0 0 12 .5"/></svg><span>GitHub</span></a>
     </nav>
@@ -361,6 +362,11 @@ footer a:hover { background: var(--c-yellow); }
     if (config.showAdminEntry === false) {
       var adminLink = document.getElementById('admin-link');
       if (adminLink) adminLink.remove();
+    }
+    // Hide the netdisk entry when R2 is not bound (netdisk requires img_r2)
+    if (!config.netdiskEnabled) {
+      var netdiskLink = document.getElementById('netdisk-link');
+      if (netdiskLink) netdiskLink.remove();
     }
     renderSetupProblems(config.problems);
   }).catch(function () { /* defaults already in markup */ });

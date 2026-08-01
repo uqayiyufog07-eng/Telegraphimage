@@ -15,6 +15,10 @@ export async function onRequestGet(context) {
         enableShortUrls: isShortUrlsEnabled(env),
         uploadRequiresAuth: !isEmptyBinding(env.UPLOAD_BASIC_USER) && !isEmptyBinding(env.UPLOAD_BASIC_PASS),
         showAdminEntry: env.HIDE_ADMIN_ENTRY !== 'true',
+        // Netdisk & WebDAV availability (both require R2 binding)
+        netdiskEnabled: !!env.img_r2,
+        webdavEnabled: !!env.img_r2,
+        webdavUrl: env.img_r2 ? '/webdav' : null,
         // Deployment self-check so a misconfigured site says so instead of
         // failing silently on the first upload. Enum status only, no values.
         ready: setup.ready,

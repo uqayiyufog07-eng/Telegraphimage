@@ -101,6 +101,7 @@
   </a>
   <nav>
     <a class="btn btn-sm" href="/"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg><span>首页</span></a>
+    <a class="btn btn-sm" id="netdisk-link" href="/netdisk"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>网盘</span></a>
     <a class="btn btn-sm btn-primary" href="./admin-imgtc.html"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/></svg><span>网格视图</span></a>
     <a class="btn btn-sm btn-secondary" href="./admin-waterfall.html"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 4h5v9H4zM10.5 4h5v13h-5zM17 4h3v7h-3zM4 15h5v5H4zM10.5 19h5v1.5h-5zM17 13h3v7h-3z"/></svg><span>瀑布流</span></a>
     <button type="button" class="btn btn-sm btn-danger" id="logout-btn" hidden><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg><span>退出登录</span></button>
@@ -170,6 +171,14 @@
   var loading = false;
 
   var OPTS = { method: 'GET', redirect: 'follow', credentials: 'include' };
+
+  // Hide netdisk entry when R2 is not bound
+  fetch('/api/config').then(function (r) { return r.json(); }).then(function (cfg) {
+    if (!cfg.netdiskEnabled) {
+      var nd = document.getElementById('netdisk-link');
+      if (nd) nd.remove();
+    }
+  }).catch(function () {});
 
   // ---- auth check ----
   fetch('./api/manage/check', OPTS)

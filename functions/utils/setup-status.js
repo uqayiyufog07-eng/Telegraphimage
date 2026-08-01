@@ -10,10 +10,12 @@ import { isEmptyBinding } from './http.js';
 
 export function getSetupStatus(env) {
   const storage = storageStatus(env);
+  const netdisk = netdiskStatus(env);
   const checks = {
     storage,
     dashboard: env.img_url ? 'ok' : 'unbound',
     moderation: moderationStatus(env),
+    netdisk,
   };
 
   return {
@@ -23,9 +25,15 @@ export function getSetupStatus(env) {
       storageProvider: storage.provider,
       dashboard: checks.dashboard,
       moderation: checks.moderation,
+      netdisk: netdisk,
     },
     problems: problemsFor(storage, checks),
   };
+}
+
+function netdiskStatus(env) {
+  // 网盘功能依赖 R2 绑定
+  return env.img_r2 ? 'ok' : 'unbound';
 }
 
 function storageStatus(env) {
@@ -100,6 +108,13 @@ function problemsFor(storage, checks) {
     problems.push({
       severity: 'info',
       message: '后台图片管理未启用：需要绑定名为 img_url 的 KV 命名空间（「设置 → 函数 → KV 命名空间绑定」）。短链接功能也依赖该绑定。',
+    });
+  }
+
+  if (checks.netdisk === 'unbound') {
+    problems.push({
+      severity: 'info',
+      message: '网盘功能未启用：网盘与 WebDAV 访问需要绑定名为 img_r2 的 R2 存储桶（「设置 → 函数 → R2 存储桶绑定」）。绑定后访问 /netdisk 即可使用网盘，/webdav 可用于 WebDAV 客户端挂载。',
     });
   }
 

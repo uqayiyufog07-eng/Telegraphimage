@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="文件分享">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="stylesheet" href="/assets/theme.css">
+<title>文件分享</title>
+<style>
+  body { display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: var(--sp-3); }
+  .share-card {
+    width: 100%; max-width: 640px; background: var(--c-white);
+    border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+  .share-head {
+    padding: var(--sp-3); background: var(--c-yellow); border-bottom: var(--bd);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .share-head .ico {
+    width: 44px; height: 44px; flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--c-white); border: var(--bd-thin); border-radius: var(--radius);
+  }
+  .share-head .ico svg { width: 24px; height: 24px; }
+  .share-head h1 { font-size: 20px; margin: 0; }
+  .share-head .sub { font-size: 13px; color: var(--c-ink-soft); margin-top: 2px; }
+  .share-body { padding: var(--sp-3); }
+
+  .pw-form { display: flex; gap: 8px; }
+  .pw-form .input { flex: 1; }
+  .info-banner {
+    padding: 10px 14px; background: var(--c-paper-warm); border: var(--bd-thin);
+    border-radius: var(--radius-sm); font-size: 13px; margin-bottom: var(--sp-2);
+  }
+  .info-banner b { font-family: var(--font-head); }
+
+  /* 文件列表 */
+  .file-list { display: flex; flex-direction: column; gap: 8px; }
+  .file-item {
+    display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+    background: var(--c-paper); border: var(--bd-thin); border-radius: var(--radius-sm);
+    box-shadow: var(--shadow-sm); transition: all var(--dur-fast) ease;
+  }
+  .file-item:hover { background: var(--c-paper-warm); transform: translateX(-1px); }
+  .file-item .ico {
+    width: 36px; height: 36px; flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    border: var(--bd-thin); border-radius: var(--radius-sm);
+  }
+  .file-item .ico.img { background: var(--c-pink); }
+  .file-item .ico.video { background: var(--c-blue); color: var(--c-white); }
+  .file-item .ico.audio { background: var(--c-coral); color: var(--c-white); }
+  .file-item .ico.doc { background: var(--c-paper-warm); }
+  .file-item .ico svg { width: 18px; height: 18px; }
+  .file-item .meta { flex: 1; min-width: 0; }
+  .file-item .name { font-weight: 600; font-size: 14px; word-break: break-all; }
+  .file-item .size { font-family: var(--font-mono); font-size: 12px; color: var(--c-ink-soft); }
+  .file-item .actions { flex: none; }
+
+  .empty-state { text-align: center; padding: var(--sp-4); color: var(--c-ink-soft); }
+  .error-state { text-align: center; padding: var(--sp-4); color: var(--c-coral); }
+  .expired-state {
+    text-align: center; padding: var(--sp-6) var(--sp-3); color: var(--c-ink-soft);
+  }
+  .expired-state svg { width: 64px; height: 64px; opacity: .4; margin-bottom: var(--sp-2); }
+
+  /* 预览 */
+  .preview-box { margin-top: var(--sp-2); text-align: center; }
+  .preview-box img, .preview-box video, .preview-box audio { max-width: 100%; max-height: 400px; border: var(--bd-thin); border-radius: var(--radius-sm); }
+
+  .btn-bar { display: flex; gap: 8px; margin-top: var(--sp-2); flex-wrap: wrap; }
+</style>
+</head>
+<body>
+<div class="share-card">
+  <div class="share-head">
+    <span class="ico">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+        <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+      </svg>
+    </span>
+    <div>
+      <h1 id="title">文件分享</h1>
+      <div class="sub" id="subtitle">正在加载...</div>
+    </div>
+  </div>
+  <div class="share-body" id="body">
+    <div class="empty-state">加载中...</div>
+  </div>
+</div>
+
+<script>
+'use strict';
+const $ = (s) => document.querySelector(s);
+const params = new URLSearchParams(location.search);
+const token = params.get('token') || location.pathname.split('/').pop();
+let verifiedPassword = '';
+let shareInfo = null;
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function formatSize(b) {
+  if (!b) return '-';
+  const u = ['B','KB','MB','GB','TB']; let i=0,n=b;
+  while(n>=1024&&i<u.length-1){n/=1024;i++;}
+  return n.toFixed(i===0?0:1)+' '+u[i];
+}
+function iconClass(name) {
+  const ext = (name.split('.').pop()||'').toLowerCase();
+  if (['png','jpg','jpeg','gif','webp','avif','bmp','svg','ico'].includes(ext)) return 'img';
+  if (['mp4','m4v','mov','webm','ogv'].includes(ext)) return 'video';
+  if (['mp3','m4a','ogg','wav','flac','aac'].includes(ext)) return 'audio';
+  return 'doc';
+}
+function iconSvg(t) {
+  if (t==='img') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+  if (t==='video') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>';
+  if (t==='audio') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+}
+
+async function loadShare() {
+  if (!token) {
+    $('#body').innerHTML = '<div class="error-state">无效的分享链接</div>';
+    return;
+  }
+  try {
+    const url = '/api/share/access?token=' + encodeURIComponent(token) + (verifiedPassword ? '&password=' + encodeURIComponent(verifiedPassword) : '');
+    const res = await fetch(url);
+    const data = await res.json().catch(() => ({}));
+
+    if (res.status === 401 && data.needsPassword) {
+      renderPasswordForm();
+      return;
+    }
+    if (res.status === 410 || data.error?.includes('expired')) {
+      renderExpired();
+      return;
+    }
+    if (!res.ok) {
+      $('#body').innerHTML = `<div class="error-state">${escapeHtml(data.error || '分享不存在或已被删除')}</div>`;
+      $('#subtitle').textContent = '分享失效';
+      return;
+    }
+
+    shareInfo = data;
+    renderShare(data);
+  } catch (e) {
+    $('#body').innerHTML = `<div class="error-state">加载失败: ${escapeHtml(e.message)}</div>`;
+  }
+}
+
+function renderPasswordForm() {
+  $('#subtitle').textContent = '此分享需要密码访问';
+  $('#body').innerHTML = `
+    <div class="info-banner">请输入访问密码以查看分享内容</div>
+    <div class="pw-form">
+      <input class="input" id="pw-input" type="password" placeholder="访问密码" autofocus>
+      <button class="btn btn-primary" id="pw-submit">解锁</button>
+    </div>
+  `;
+  $('#pw-submit').onclick = submitPassword;
+  $('#pw-input').onkeydown = (e) => { if (e.key === 'Enter') submitPassword(); };
+}
+
+async function submitPassword() {
+  const pw = $('#pw-input').value;
+  try {
+    const res = await fetch('/api/share/access?token=' + encodeURIComponent(token), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert(data.error || '密码错误');
+      return;
+    }
+    verifiedPassword = pw;
+    loadShare();
+  } catch (e) {
+    alert('验证失败: ' + e.message);
+  }
+}
+
+function renderShare(data) {
+  $('#subtitle').textContent = data.type === 'folder' ? '文件夹分享' : '文件分享';
+  const baseUrl = '/api/share/access?token=' + encodeURIComponent(token) + (verifiedPassword ? '&password=' + encodeURIComponent(verifiedPassword) : '');
+
+  if (data.type === 'file') {
+    $('#title').textContent = data.name || '文件分享';
+    const ext = (data.name.split('.').pop()||'').toLowerCase();
+    let previewHtml = '';
+    if (['png','jpg','jpeg','gif','webp','avif','bmp','svg','ico'].includes(ext)) {
+      previewHtml = `<div class="preview-box"><img src="${baseUrl}" alt="${escapeHtml(data.name)}"></div>`;
+    } else if (['mp4','m4v','mov','webm','ogv'].includes(ext)) {
+      previewHtml = `<div class="preview-box"><video src="${baseUrl}" controls></video></div>`;
+    } else if (['mp3','m4a','ogg','wav','flac','aac'].includes(ext)) {
+      previewHtml = `<div class="preview-box"><audio src="${baseUrl}" controls></audio></div>`;
+    }
+
+    $('#body').innerHTML = `
+      ${previewHtml}
+      <div class="info-banner" style="margin-top:12px">
+        <b>文件名:</b> ${escapeHtml(data.name)}<br>
+        <b>大小:</b> ${formatSize(data.size)}
+      </div>
+      <div class="btn-bar">
+        <a class="btn btn-primary" href="${baseUrl}" download="${escapeHtml(data.name)}">
+          <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          下载文件
+        </a>
+      </div>
+    `;
+    return;
+  }
+
+  // 文件夹分享
+  $('#title').textContent = '文件夹分享';
+  const items = data.items || [];
+  if (items.length === 0) {
+    $('#body').innerHTML = '<div class="empty-state">此文件夹为空</div>';
+    return;
+  }
+
+  const listHtml = items.map(item => {
+    const cls = iconClass(item.name);
+    const dlUrl = baseUrl + '&download=' + encodeURIComponent(item.name);
+    return `
+      <div class="file-item">
+        <span class="ico ${cls}">${iconSvg(cls)}</span>
+        <div class="meta">
+          <div class="name">${escapeHtml(item.name)}</div>
+          <div class="size">${formatSize(item.size)} · ${new Date(item.modified).toLocaleString('zh-CN')}</div>
+        </div>
+        <div class="actions">
+          <a class="btn btn-ghost btn-sm" href="${dlUrl}" download="${escapeHtml(item.name)}" title="下载">
+            <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          </a>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  $('#body').innerHTML = `
+    <div class="info-banner">
+      <b>文件数:</b> ${items.length} 个 · <b>已下载:</b> ${data.downloadCount || 0} 次
+    </div>
+    <div class="file-list">${listHtml}</div>
+    <div class="btn-bar">
+      <a class="btn btn-primary" href="${baseUrl}&zip=true" download="share.zip">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        打包下载全部 (ZIP)
+      </a>
+    </div>
+  `;
+}
+
+function renderExpired() {
+  $('#subtitle').textContent = '分享已过期';
+  $('#body').innerHTML = `
+    <div class="expired-state">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto">
+        <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+      </svg>
+      <h3 style="margin-bottom:8px">分享已过期</h3>
+      <p>此分享链接已超过有效期，无法访问。</p>
+    </div>
+  `;
+}
+
+loadShare();
+</script>
+</body>
+</html>

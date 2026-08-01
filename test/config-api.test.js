@@ -18,6 +18,9 @@ describe('/api/config endpoint', function () {
       enableShortUrls: false,
       uploadRequiresAuth: false,
       showAdminEntry: true,
+      netdiskEnabled: false,
+      webdavEnabled: false,
+      webdavUrl: null,
     });
 
     // an empty env is not a usable deployment, and the response says why
@@ -49,6 +52,9 @@ describe('/api/config endpoint', function () {
       enableShortUrls: true,
       uploadRequiresAuth: true,
       showAdminEntry: false,
+      netdiskEnabled: false,
+      webdavEnabled: false,
+      webdavUrl: null,
     });
     assert.ok(setup, 'setup status is always present');
     assert.ok(Array.isArray(problems));
@@ -58,7 +64,7 @@ describe('/api/config endpoint', function () {
   it('reports a ready deployment with no problems', async function () {
     const { onRequestGet } = await import('../functions/api/config.js');
     const res = await onRequestGet(makeContext({
-      env: { TG_Bot_Token: 'token', TG_Chat_ID: '-100', img_url: {} },
+      env: { TG_Bot_Token: 'token', TG_Chat_ID: '-100', img_url: {}, img_r2: {} },
     }));
 
     const body = JSON.parse(await res.text());

@@ -7,12 +7,13 @@ describe('deployment setup status', function () {
 
   it('reports ready when Telegram storage is fully configured', async function () {
     const { getSetupStatus } = await getModule();
-    const status = getSetupStatus({ TG_Bot_Token: 'token', TG_Chat_ID: '-100', img_url: {} });
+    const status = getSetupStatus({ TG_Bot_Token: 'token', TG_Chat_ID: '-100', img_url: {}, img_r2: {} });
 
     assert.strictEqual(status.ready, true);
     assert.strictEqual(status.checks.storage, 'ok');
     assert.strictEqual(status.checks.storageProvider, 'telegram');
     assert.strictEqual(status.checks.dashboard, 'ok');
+    assert.strictEqual(status.checks.netdisk, 'ok');
     assert.deepStrictEqual(status.problems, []);
   });
 

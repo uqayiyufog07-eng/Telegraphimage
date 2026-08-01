@@ -1,0 +1,857 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="网盘文件管理，基于 Cloudflare R2">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="stylesheet" href="/assets/theme.css">
+<title>网盘 | 文件管理</title>
+<style>
+  /* ---- 页面框架 ---- */
+  .page { min-height: 100vh; display: flex; flex-direction: column; }
+  .topbar .brand-mini {
+    display: inline-flex; align-items: center; gap: 10px; margin-right: auto;
+    font-family: var(--font-head); font-weight: 700; font-size: 17px; letter-spacing: .2px;
+  }
+  .topbar .brand-mini .logo-badge {
+    width: 36px; height: 36px; flex: none;
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--c-teal); color: var(--c-white);
+    border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  }
+  .topbar .brand-mini .logo-badge .icon { width: 20px; height: 20px; }
+  .topbar nav { display: flex; align-items: center; gap: 10px; }
+  .topbar nav .tab {
+    padding: 8px 14px; font-family: var(--font-head); font-weight: 700; font-size: 14px;
+    border: var(--bd-thin); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+    background: var(--c-white); transition: all var(--dur-fast) var(--ease-pop);
+  }
+  .topbar nav .tab:hover { transform: translate(-1px,-1px); box-shadow: var(--shadow); }
+  .topbar nav .tab.active { background: var(--c-teal); color: var(--c-white); }
+
+  /* ---- 主体 ---- */
+  .nd-main { flex: 1; max-width: var(--maxw); width: 100%; margin: 0 auto; padding: var(--sp-3); }
+
+  /* 面包屑 */
+  .breadcrumb {
+    display: flex; align-items: center; flex-wrap: wrap; gap: 6px;
+    padding: 12px var(--sp-2); margin-bottom: var(--sp-2);
+    background: var(--c-white); border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  }
+  .breadcrumb a, .breadcrumb span {
+    font-family: var(--font-head); font-weight: 600; font-size: 14px;
+    padding: 4px 10px; border-radius: var(--radius-sm); cursor: pointer;
+  }
+  .breadcrumb a:hover { background: var(--c-paper-warm); }
+  .breadcrumb .sep { color: var(--c-ink-soft); padding: 0 2px; cursor: default; }
+  .breadcrumb .current { background: var(--c-yellow); }
+
+  /* 工具栏 */
+  .nd-toolbar {
+    display: flex; gap: var(--sp-1); align-items: center; flex-wrap: wrap; margin-bottom: var(--sp-2);
+  }
+  .nd-toolbar .spacer { flex: 1; }
+  .nd-dropzone {
+    border: 3px dashed var(--c-ink); border-radius: var(--radius);
+    padding: 10px var(--sp-2); background: var(--c-paper-warm);
+    font-family: var(--font-head); font-weight: 700; font-size: 13px;
+    display: inline-flex; align-items: center; gap: 8px; cursor: pointer;
+    transition: all var(--dur-fast) var(--ease-pop);
+  }
+  .nd-dropzone:hover { background: var(--c-yellow); transform: translate(-1px,-1px); }
+  .nd-dropzone.dragover { background: var(--c-teal); color: var(--c-white); transform: scale(1.02); }
+
+  /* 文件表格 */
+  .nd-table-wrap {
+    background: var(--c-white); border: var(--bd); border-radius: var(--radius);
+    box-shadow: var(--shadow); overflow: hidden;
+  }
+  .nd-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  .nd-table th {
+    font-family: var(--font-head); font-weight: 700; text-align: left;
+    padding: 12px 14px; background: var(--c-teal); color: var(--c-white);
+    border-bottom: var(--bd); white-space: nowrap; cursor: pointer; user-select: none;
+  }
+  .nd-table th:hover { background: #3bb5ac; }
+  .nd-table td { padding: 10px 14px; border-bottom: var(--bd-thin); vertical-align: middle; }
+  .nd-table tbody tr:last-child td { border-bottom: none; }
+  .nd-table tbody tr { transition: background-color var(--dur-fast) ease; cursor: default; }
+  .nd-table tbody tr:hover { background: var(--c-paper-warm); }
+  .nd-table tbody tr.selected { background: var(--c-yellow); }
+  .nd-table .col-name { min-width: 200px; }
+  .nd-table .col-size { width: 110px; font-family: var(--font-mono); font-size: 13px; }
+  .nd-table .col-time { width: 170px; font-family: var(--font-mono); font-size: 12px; color: var(--c-ink-soft); }
+  .nd-table .col-actions { width: 200px; text-align: right; white-space: nowrap; }
+  .nd-table .file-icon { display: inline-flex; align-items: center; gap: 10px; }
+  .nd-table .file-icon .ico {
+    width: 32px; height: 32px; flex: none; border: var(--bd-thin); border-radius: var(--radius-sm);
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .nd-table .file-icon .ico.folder { background: var(--c-yellow); }
+  .nd-table .file-icon .ico.img { background: var(--c-pink); }
+  .nd-table .file-icon .ico.video { background: var(--c-blue); color: var(--c-white); }
+  .nd-table .file-icon .ico.audio { background: var(--c-coral); color: var(--c-white); }
+  .nd-table .file-icon .ico.doc { background: var(--c-paper-warm); }
+  .nd-table .file-icon .ico svg { width: 18px; height: 18px; }
+  .nd-table .fname { font-weight: 600; word-break: break-all; }
+  .nd-table .fname.is-folder { cursor: pointer; }
+  .nd-table .fname.is-folder:hover { text-decoration: underline; }
+  .nd-row-actions { display: inline-flex; gap: 4px; }
+  .nd-row-actions .btn-icon { width: 34px; height: 34px; min-height: 34px; }
+  .nd-row-actions .btn-icon svg { width: 16px; height: 16px; }
+
+  /* 空状态 */
+  .nd-empty { text-align: center; padding: var(--sp-6) var(--sp-3); color: var(--c-ink-soft); }
+  .nd-empty svg { width: 64px; height: 64px; opacity: .4; margin-bottom: var(--sp-2); }
+
+  /* 加载 */
+  .nd-loading { text-align: center; padding: var(--sp-4); color: var(--c-ink-soft); }
+
+  /* 模态框 */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 90; background: rgba(20,20,20,.5);
+    display: flex; align-items: center; justify-content: center; padding: var(--sp-2);
+    opacity: 0; pointer-events: none; transition: opacity var(--dur-mid) ease;
+  }
+  .modal-overlay.show { opacity: 1; pointer-events: auto; }
+  .modal {
+    background: var(--c-white); border: var(--bd); border-radius: var(--radius);
+    box-shadow: var(--shadow-lg); max-width: 560px; width: 100%; max-height: 90vh; overflow: auto;
+    transform: translateY(20px); transition: transform var(--dur-mid) var(--ease-pop);
+  }
+  .modal-overlay.show .modal { transform: translateY(0); }
+  .modal-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: var(--sp-2) var(--sp-3); border-bottom: var(--bd); background: var(--c-yellow);
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+  .modal-head h3 { font-size: 17px; }
+  .modal-head .close { cursor: pointer; padding: 4px; }
+  .modal-body { padding: var(--sp-3); }
+  .modal-foot {
+    display: flex; gap: var(--sp-1); justify-content: flex-end;
+    padding: var(--sp-2) var(--sp-3); border-top: var(--bd); background: var(--c-paper);
+  }
+  .form-row { margin-bottom: var(--sp-2); }
+  .form-row label { display: block; font-family: var(--font-head); font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+  .form-row select { width: 100%; }
+
+  /* 预览模态 */
+  .preview-modal { max-width: 900px; }
+  .preview-body { padding: 0; text-align: center; background: var(--c-ink); max-height: 80vh; overflow: auto; }
+  .preview-body img, .preview-body video, .preview-body audio { max-width: 100%; max-height: 80vh; }
+  .preview-body .pdf-embed { width: 100%; height: 80vh; border: none; }
+  .preview-body .unsupported { padding: var(--sp-6); color: var(--c-paper); }
+  .preview-body .unsupported svg { width: 56px; height: 56px; opacity: .5; margin-bottom: var(--sp-2); }
+
+  /* 分享链接展示 */
+  .share-link-box {
+    display: flex; gap: 8px; align-items: center;
+    padding: 10px 12px; background: var(--c-paper-warm); border: var(--bd-thin); border-radius: var(--radius-sm);
+    margin-top: 8px;
+  }
+  .share-link-box input { flex: 1; background: transparent; border: none; font-family: var(--font-mono); font-size: 13px; color: var(--c-ink); outline: none; }
+
+  /* 上传进度 */
+  .upload-progress {
+    position: fixed; right: var(--sp-3); bottom: var(--sp-3); z-index: 80;
+    background: var(--c-white); border: var(--bd); border-radius: var(--radius);
+    box-shadow: var(--shadow-lg); padding: var(--sp-2); min-width: 280px; max-width: 360px;
+    display: none;
+  }
+  .upload-progress.show { display: block; }
+  .upload-progress h4 { font-size: 14px; margin-bottom: 8px; }
+  .upload-progress .up-item { font-size: 12px; padding: 4px 0; border-top: var(--bd-thin); }
+  .upload-progress .up-item:first-of-type { border-top: none; }
+  .upload-progress .up-bar {
+    height: 4px; background: var(--c-paper-warm); border-radius: 2px; overflow: hidden; margin-top: 2px;
+  }
+  .upload-progress .up-bar-fill { height: 100%; background: var(--c-teal); transition: width .2s ease; }
+
+  /* Toast（复用 theme.css） */
+  .toast-zone { z-index: 100; }
+
+  /* 响应式 */
+  @media (max-width: 700px) {
+    .nd-table .col-time { display: none; }
+    .nd-table .col-size { width: 80px; }
+    .topbar nav .tab { padding: 6px 10px; font-size: 13px; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+  <!-- 顶栏 -->
+  <header class="topbar">
+    <div class="brand-mini">
+      <span class="logo-badge">
+        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 12v6a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h6l2 3h8a2 2 0 0 1 2 2z"/>
+        </svg>
+      </span>
+      <span id="site-name">网盘</span>
+    </div>
+    <nav>
+      <a class="tab" href="/">图床</a>
+      <a class="tab active" href="/netdisk">网盘</a>
+      <a class="tab" href="/admin">后台</a>
+    </nav>
+  </header>
+
+  <!-- 主体 -->
+  <main class="nd-main">
+    <!-- 面包屑 -->
+    <div class="breadcrumb" id="breadcrumb"></div>
+
+    <!-- 工具栏 -->
+    <div class="nd-toolbar">
+      <label class="nd-dropzone" id="dropzone">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        上传文件
+        <input type="file" id="file-input" multiple style="display:none">
+      </label>
+      <button class="btn btn-secondary btn-sm" id="btn-mkdir">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/>
+        </svg>
+        新建文件夹
+      </button>
+      <button class="btn btn-danger btn-sm" id="btn-batch-delete" disabled>
+        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
+        批量删除
+      </button>
+      <div class="spacer"></div>
+      <button class="btn btn-ghost btn-sm" id="btn-refresh">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+        </svg>
+        刷新
+      </button>
+    </div>
+
+    <!-- 文件列表 -->
+    <div class="nd-table-wrap">
+      <table class="nd-table">
+        <thead>
+          <tr>
+            <th style="width:36px"><input type="checkbox" id="select-all"></th>
+            <th class="col-name" data-sort="name">名称</th>
+            <th class="col-size" data-sort="size">大小</th>
+            <th class="col-time" data-sort="modified">修改时间</th>
+            <th class="col-actions">操作</th>
+          </tr>
+        </thead>
+        <tbody id="file-tbody">
+          <tr><td colspan="5" class="nd-loading">加载中...</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</div>
+
+<!-- 新建文件夹 / 重命名 模态 -->
+<div class="modal-overlay" id="modal-rename">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="rename-title">新建文件夹</h3>
+      <span class="close" data-close>&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label>名称</label>
+        <input class="input" id="rename-input" placeholder="输入名称">
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" data-close>取消</button>
+      <button class="btn btn-primary btn-sm" id="rename-confirm">确定</button>
+    </div>
+  </div>
+</div>
+
+<!-- 分享模态 -->
+<div class="modal-overlay" id="modal-share">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>创建分享</h3>
+      <span class="close" data-close>&times;</span>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label>访问密码（可选）</label>
+        <input class="input" id="share-password" type="text" placeholder="留空则无密码保护">
+      </div>
+      <div class="form-row">
+        <label>有效期</label>
+        <select class="input" id="share-expiry">
+          <option value="1d">1 天</option>
+          <option value="7d" selected>7 天</option>
+          <option value="30d">30 天</option>
+          <option value="permanent">永久</option>
+        </select>
+      </div>
+      <div id="share-result" style="display:none">
+        <div class="form-row">
+          <label>分享链接</label>
+          <div class="share-link-box">
+            <input id="share-link-url" readonly>
+            <button class="btn btn-secondary btn-sm" id="share-copy">复制</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" data-close>关闭</button>
+      <button class="btn btn-primary btn-sm" id="share-create">创建分享</button>
+    </div>
+  </div>
+</div>
+
+<!-- 预览模态 -->
+<div class="modal-overlay" id="modal-preview">
+  <div class="modal preview-modal">
+    <div class="modal-head">
+      <h3 id="preview-title">预览</h3>
+      <span class="close" data-close>&times;</span>
+    </div>
+    <div class="preview-body" id="preview-body"></div>
+  </div>
+</div>
+
+<!-- 上传进度 -->
+<div class="upload-progress" id="upload-progress">
+  <h4>上传中... <span id="upload-count"></span></h4>
+  <div id="upload-list"></div>
+</div>
+
+<!-- Toast -->
+<div class="toast-zone" id="toast-zone"></div>
+
+<script>
+'use strict';
+
+// ---- 状态 ----
+let currentPath = '';
+let sortKey = 'name';
+let sortAsc = true;
+let selectedPaths = new Set();
+let renameMode = null; // { type: 'mkdir'|'rename', oldPath?: string }
+
+// ---- 工具函数 ----
+const $ = (sel) => document.querySelector(sel);
+const $$ = (sel) => document.querySelectorAll(sel);
+
+function toast(msg, type = 'success') {
+  const zone = $('#toast-zone');
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  zone.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => {
+    el.classList.remove('show');
+    setTimeout(() => el.remove(), 300);
+  }, 2800);
+}
+
+function formatSize(bytes) {
+  if (!bytes || bytes === 0) return '-';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let i = 0;
+  let n = bytes;
+  while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+  return n.toFixed(i === 0 ? 0 : 1) + ' ' + units[i];
+}
+
+function formatTime(iso) {
+  if (!iso) return '-';
+  try {
+    const d = new Date(iso);
+    return d.toLocaleString('zh-CN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  } catch { return iso; }
+}
+
+function fileIconClass(name, contentType) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  if (contentType?.startsWith('image/') || ['png','jpg','jpeg','gif','webp','avif','bmp','svg','ico'].includes(ext)) return 'img';
+  if (contentType?.startsWith('video/') || ['mp4','m4v','mov','webm','ogv','mkv','avi'].includes(ext)) return 'video';
+  if (contentType?.startsWith('audio/') || ['mp3','m4a','ogg','wav','flac','aac'].includes(ext)) return 'audio';
+  return 'doc';
+}
+
+function iconSvg(type) {
+  if (type === 'folder') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>';
+  if (type === 'img') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>';
+  if (type === 'video') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="23 7 16 12 23 17 23 7"/><rect x="1" y="5" width="15" height="14" rx="2"/></svg>';
+  if (type === 'audio') return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>';
+}
+
+function isPreviewable(name, contentType) {
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  if (contentType?.startsWith('image/') || ['png','jpg','jpeg','gif','webp','avif','bmp','svg','ico'].includes(ext)) return 'image';
+  if (contentType?.startsWith('video/') || ['mp4','m4v','mov','webm','ogv'].includes(ext)) return 'video';
+  if (contentType?.startsWith('audio/') || ['mp3','m4a','ogg','wav','flac','aac'].includes(ext)) return 'audio';
+  if (ext === 'pdf' || contentType === 'application/pdf') return 'pdf';
+  if (['txt','md','json','js','css','html','xml','log','csv','py','java','c','cpp','go','rs','sh'].includes(ext)) return 'text';
+  return null;
+}
+
+// ---- API 调用 ----
+async function apiList(path) {
+  const url = '/netdisk/api/list?path=' + encodeURIComponent(path);
+  const res = await fetch(url);
+  if (!res.ok) {
+    if (res.status === 401) { location.href = '/netdisk'; return null; }
+    throw new Error('列表加载失败: ' + res.status);
+  }
+  return res.json();
+}
+
+async function apiUpload(path, file, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    const url = '/netdisk/api/upload?path=' + encodeURIComponent(path);
+    xhr.open('POST', url);
+    xhr.upload.onprogress = (e) => {
+      if (e.lengthComputable && onProgress) onProgress(e.loaded / e.total);
+    };
+    xhr.onload = () => {
+      if (xhr.status >= 200 && xhr.status < 300) {
+        try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({}); }
+      } else {
+        reject(new Error('上传失败: ' + xhr.status));
+      }
+    };
+    xhr.onerror = () => reject(new Error('网络错误'));
+    const fd = new FormData();
+    fd.append('file', file);
+    xhr.send(fd);
+  });
+}
+
+async function apiCall(url, method = 'GET', body = null) {
+  const opts = { method, headers: {} };
+  if (body) {
+    opts.headers['Content-Type'] = 'application/json';
+    opts.body = JSON.stringify(body);
+  }
+  const res = await fetch(url, opts);
+  if (!res.ok) {
+    let msg = '请求失败: ' + res.status;
+    try { const j = await res.json(); if (j.error) msg = j.error; } catch {}
+    throw new Error(msg);
+  }
+  const ct = res.headers.get('Content-Type') || '';
+  if (ct.includes('application/json')) return res.json();
+  return res;
+}
+
+// ---- 渲染 ----
+async function loadList() {
+  const tbody = $('#file-tbody');
+  tbody.innerHTML = '<tr><td colspan="5" class="nd-loading">加载中...</td></tr>';
+  try {
+    const data = await apiList(currentPath);
+    if (!data) return;
+    renderBreadcrumb(data.path || '');
+    renderTable(data.items || []);
+  } catch (e) {
+    tbody.innerHTML = `<tr><td colspan="5" class="nd-loading" style="color:var(--c-coral)">${e.message}</td></tr>`;
+  }
+}
+
+function renderBreadcrumb(path) {
+  const bc = $('#breadcrumb');
+  bc.innerHTML = '';
+  const segments = path ? path.split('/').filter(Boolean) : [];
+
+  // 根目录
+  const rootEl = document.createElement('a');
+  rootEl.textContent = '根目录';
+  rootEl.onclick = () => { currentPath = ''; loadList(); };
+  bc.appendChild(rootEl);
+
+  let acc = '';
+  segments.forEach((seg, i) => {
+    acc += (acc ? '/' : '') + seg;
+    const sep = document.createElement('span');
+    sep.className = 'sep';
+    sep.textContent = '/';
+    bc.appendChild(sep);
+
+    const isLast = i === segments.length - 1;
+    const el = document.createElement(isLast ? 'span' : 'a');
+    el.textContent = seg;
+    if (isLast) el.className = 'current';
+    else { el.onclick = () => { currentPath = acc; loadList(); }; }
+    bc.appendChild(el);
+  });
+}
+
+function renderTable(items) {
+  const tbody = $('#file-tbody');
+  selectedPaths.clear();
+  updateBatchDeleteBtn();
+
+  // 排序
+  items.sort((a, b) => {
+    if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+    let cmp = 0;
+    if (sortKey === 'name') cmp = a.name.localeCompare(b.name, 'zh');
+    else if (sortKey === 'size') cmp = (a.size || 0) - (b.size || 0);
+    else if (sortKey === 'modified') cmp = new Date(a.modified || 0) - new Date(b.modified || 0);
+    return sortAsc ? cmp : -cmp;
+  });
+
+  if (items.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="5" class="nd-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
+      <div>此文件夹为空</div>
+    </td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = '';
+  for (const item of items) {
+    const tr = document.createElement('tr');
+    const isFolder = item.type === 'folder';
+    const iconCls = isFolder ? 'folder' : fileIconClass(item.name, item.contentType);
+    const encodedPath = encodeURIComponent(item.path);
+
+    tr.innerHTML = `
+      <td><input type="checkbox" class="row-check" data-path="${item.path}"></td>
+      <td class="col-name">
+        <div class="file-icon">
+          <span class="ico ${iconCls}">${iconSvg(isFolder ? 'folder' : iconCls)}</span>
+          <span class="fname ${isFolder ? 'is-folder' : ''}" data-path="${item.path}">${escapeHtml(item.name)}</span>
+        </div>
+      </td>
+      <td class="col-size">${isFolder ? '-' : formatSize(item.size)}</td>
+      <td class="col-time">${formatTime(item.modified)}</td>
+      <td class="col-actions">
+        <div class="nd-row-actions">
+          ${isFolder ? `
+            <button class="btn btn-ghost btn-icon btn-sm" data-action="download" data-path="${item.path}" title="下载ZIP">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </button>
+          ` : `
+            <button class="btn btn-ghost btn-icon btn-sm" data-action="preview" data-path="${item.path}" data-name="${escapeHtml(item.name)}" data-ct="${item.contentType || ''}" title="预览">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            </button>
+            <a class="btn btn-ghost btn-icon btn-sm" href="/netdisk/api/download?path=${encodedPath}" title="下载" style="text-decoration:none;display:inline-flex;align-items:center;justify-content:center">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            </a>
+          `}
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="share" data-path="${item.path}" title="分享">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="rename" data-path="${item.path}" data-name="${escapeHtml(item.name)}" title="重命名">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+          <button class="btn btn-ghost btn-icon btn-sm" data-action="delete" data-path="${item.path}" title="删除">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+          </button>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  // 绑定事件
+  tbody.querySelectorAll('.fname.is-folder').forEach(el => {
+    el.onclick = () => { currentPath = el.dataset.path.replace(/\/+$/, ''); loadList(); };
+  });
+  tbody.querySelectorAll('[data-action]').forEach(btn => {
+    btn.onclick = (e) => {
+      e.stopPropagation();
+      handleAction(btn.dataset.action, btn.dataset.path, btn.dataset.name, btn.dataset.ct);
+    };
+  });
+  tbody.querySelectorAll('.row-check').forEach(cb => {
+    cb.onchange = () => {
+      if (cb.checked) selectedPaths.add(cb.dataset.path);
+      else selectedPaths.delete(cb.dataset.path);
+      cb.closest('tr').classList.toggle('selected', cb.checked);
+      updateBatchDeleteBtn();
+    };
+  });
+}
+
+function escapeHtml(s) {
+  return String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+
+function updateBatchDeleteBtn() {
+  $('#btn-batch-delete').disabled = selectedPaths.size === 0;
+}
+
+// ---- 操作处理 ----
+async function handleAction(action, path, name, contentType) {
+  if (action === 'preview') return showPreview(path, name, contentType);
+  if (action === 'download') return downloadFolder(path);
+  if (action === 'share') return showShareModal(path);
+  if (action === 'rename') return showRenameModal(path, name);
+  if (action === 'delete') return deleteItem(path);
+}
+
+function downloadFolder(path) {
+  const url = '/netdisk/api/download?path=' + encodeURIComponent(path) + '&zip=true';
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = '';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+}
+
+async function showPreview(path, name, contentType) {
+  const previewType = isPreviewable(name, contentType);
+  const body = $('#preview-body');
+  $('#preview-title').textContent = name;
+  const encodedPath = encodeURIComponent(path);
+  const fileUrl = '/netdisk/api/download?path=' + encodedPath;
+
+  if (!previewType) {
+    body.innerHTML = `<div class="unsupported">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div>此文件类型不支持在线预览</div>
+      <div style="margin-top:12px"><a class="btn btn-primary btn-sm" href="${fileUrl}" download>下载文件</a></div>
+    </div>`;
+  } else if (previewType === 'image') {
+    body.innerHTML = `<img src="${fileUrl}" alt="${escapeHtml(name)}">`;
+  } else if (previewType === 'video') {
+    body.innerHTML = `<video src="${fileUrl}" controls autoplay></video>`;
+  } else if (previewType === 'audio') {
+    body.innerHTML = `<audio src="${fileUrl}" controls autoplay></audio>`;
+  } else if (previewType === 'pdf') {
+    body.innerHTML = `<iframe class="pdf-embed" src="${fileUrl}"></iframe>`;
+  } else if (previewType === 'text') {
+    try {
+      const res = await fetch(fileUrl);
+      const text = await res.text();
+      body.innerHTML = `<pre style="text-align:left;color:#f0f0f0;padding:16px;font-family:var(--font-mono);font-size:13px;white-space:pre-wrap;word-break:break-all;max-height:80vh;overflow:auto">${escapeHtml(text)}</pre>`;
+    } catch {
+      body.innerHTML = '<div class="unsupported">文本加载失败</div>';
+    }
+  }
+
+  showModal('#modal-preview');
+}
+
+function showShareModal(path) {
+  $('#share-password').value = '';
+  $('#share-expiry').value = '7d';
+  $('#share-result').style.display = 'none';
+  $('#share-create').style.display = '';
+  $('#share-create').dataset.path = path;
+  showModal('#modal-share');
+}
+
+async function createShare() {
+  const path = $('#share-create').dataset.path;
+  const password = $('#share-password').value;
+  const expiry = $('#share-expiry').value;
+  try {
+    const res = await apiCall('/netdisk/api/share', 'POST', { path, password, expiry });
+    const fullUrl = location.origin + res.shareUrl;
+    $('#share-link-url').value = fullUrl;
+    $('#share-result').style.display = '';
+    $('#share-create').style.display = 'none';
+    toast('分享已创建');
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+function showRenameModal(path, name) {
+  renameMode = { type: 'rename', oldPath: path };
+  $('#rename-title').textContent = '重命名';
+  $('#rename-input').value = name;
+  showModal('#modal-rename');
+  setTimeout(() => $('#rename-input').focus(), 100);
+}
+
+function showMkdirModal() {
+  renameMode = { type: 'mkdir' };
+  $('#rename-title').textContent = '新建文件夹';
+  $('#rename-input').value = '';
+  showModal('#modal-rename');
+  setTimeout(() => $('#rename-input').focus(), 100);
+}
+
+async function confirmRename() {
+  const newName = $('#rename-input').value.trim();
+  if (!newName) { toast('名称不能为空', 'error'); return; }
+
+  if (renameMode.type === 'mkdir') {
+    const newPath = currentPath ? currentPath + '/' + newName : newName;
+    try {
+      await apiCall('/netdisk/api/mkdir?path=' + encodeURIComponent(newPath), 'POST');
+      toast('文件夹已创建');
+      hideModal('#modal-rename');
+      loadList();
+    } catch (e) { toast(e.message, 'error'); }
+  } else if (renameMode.type === 'rename') {
+    const oldPath = renameMode.oldPath;
+    const parent = oldPath.includes('/') ? oldPath.slice(0, oldPath.lastIndexOf('/')) : '';
+    const newPath = parent ? parent + '/' + newName : newName;
+    try {
+      await apiCall('/netdisk/api/rename', 'POST', { from: oldPath, to: newPath });
+      toast('重命名成功');
+      hideModal('#modal-rename');
+      loadList();
+    } catch (e) { toast(e.message, 'error'); }
+  }
+}
+
+async function deleteItem(path) {
+  if (!confirm('确定删除 "' + path + '" ？\n文件夹下的所有内容将被一并删除。')) return;
+  try {
+    await apiCall('/netdisk/api/delete?path=' + encodeURIComponent(path), 'DELETE');
+    toast('已删除');
+    loadList();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function batchDelete() {
+  if (selectedPaths.size === 0) return;
+  if (!confirm(`确定删除选中的 ${selectedPaths.size} 项？`)) return;
+  for (const path of selectedPaths) {
+    try {
+      await apiCall('/netdisk/api/delete?path=' + encodeURIComponent(path), 'DELETE');
+    } catch (e) { console.error(e); }
+  }
+  toast('批量删除完成');
+  loadList();
+}
+
+// ---- 上传 ----
+async function handleFiles(files) {
+  if (!files || files.length === 0) return;
+  const progressEl = $('#upload-progress');
+  const listEl = $('#upload-list');
+  progressEl.classList.add('show');
+  listEl.innerHTML = '';
+
+  const fileArr = Array.from(files);
+  $('#upload-count').textContent = `(0/${fileArr.length})`;
+
+  for (let i = 0; i < fileArr.length; i++) {
+    const file = fileArr[i];
+    const itemEl = document.createElement('div');
+    itemEl.className = 'up-item';
+    itemEl.innerHTML = `<div>${escapeHtml(file.name)}</div><div class="up-bar"><div class="up-bar-fill" style="width:0%"></div></div>`;
+    listEl.appendChild(itemEl);
+
+    try {
+      await apiUpload(currentPath, file, (p) => {
+        itemEl.querySelector('.up-bar-fill').style.width = Math.round(p * 100) + '%';
+      });
+      itemEl.querySelector('.up-bar-fill').style.width = '100%';
+      itemEl.style.color = 'var(--c-teal)';
+    } catch (e) {
+      itemEl.style.color = 'var(--c-coral)';
+      itemEl.querySelector('div').textContent = file.name + ' - 失败: ' + e.message;
+    }
+    $('#upload-count').textContent = `(${i + 1}/${fileArr.length})`;
+  }
+
+  toast('上传完成');
+  setTimeout(() => progressEl.classList.remove('show'), 2000);
+  loadList();
+}
+
+// ---- 模态控制 ----
+function showModal(sel) { $(sel).classList.add('show'); }
+function hideModal(sel) { $(sel).classList.remove('show'); }
+
+// ---- 事件绑定 ----
+$('#file-input').onchange = (e) => { handleFiles(e.target.files); e.target.value = ''; };
+$('#btn-mkdir').onclick = showMkdirModal;
+$('#btn-refresh').onclick = loadList;
+$('#btn-batch-delete').onclick = batchDelete;
+$('#rename-confirm').onclick = confirmRename;
+$('#share-create').onclick = createShare;
+$('#share-copy').onclick = () => {
+  $('#share-link-url').select();
+  document.execCommand('copy');
+  toast('链接已复制');
+};
+
+// 拖拽上传
+const dropzone = $('#dropzone');
+['dragenter','dragover'].forEach(ev => dropzone.addEventListener(ev, (e) => {
+  e.preventDefault(); e.stopPropagation();
+  dropzone.classList.add('dragover');
+}));
+['dragleave','drop'].forEach(ev => dropzone.addEventListener(ev, (e) => {
+  e.preventDefault(); e.stopPropagation();
+  dropzone.classList.remove('dragover');
+}));
+dropzone.addEventListener('drop', (e) => {
+  const files = e.dataTransfer.files;
+  if (files && files.length) handleFiles(files);
+});
+
+// 全页面拖拽
+document.addEventListener('dragover', (e) => e.preventDefault());
+document.addEventListener('drop', (e) => {
+  e.preventDefault();
+  if (e.target.closest('.nd-dropzone')) return; // 已由 dropzone 处理
+  const files = e.dataTransfer.files;
+  if (files && files.length) handleFiles(files);
+});
+
+// 全选
+$('#select-all').onchange = (e) => {
+  $$('.row-check').forEach(cb => {
+    cb.checked = e.target.checked;
+    if (cb.checked) selectedPaths.add(cb.dataset.path);
+    else selectedPaths.delete(cb.dataset.path);
+    cb.closest('tr').classList.toggle('selected', cb.checked);
+  });
+  updateBatchDeleteBtn();
+};
+
+// 排序
+$$('.nd-table th[data-sort]').forEach(th => {
+  th.onclick = () => {
+    const key = th.dataset.sort;
+    if (sortKey === key) sortAsc = !sortAsc;
+    else { sortKey = key; sortAsc = true; }
+    loadList();
+  };
+});
+
+// 关闭模态
+$$('[data-close]').forEach(el => {
+  el.onclick = () => el.closest('.modal-overlay').classList.remove('show');
+});
+$$('.modal-overlay').forEach(ov => {
+  ov.addEventListener('click', (e) => { if (e.target === ov) ov.classList.remove('show'); });
+});
+
+// 键盘
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') $$('.modal-overlay.show').forEach(ov => ov.classList.remove('show'));
+});
+
+// 初始化
+loadList();
+
+// 加载站点配置
+fetch('/api/config').then(r => r.json()).then(cfg => {
+  if (cfg.siteName) {
+    $('#site-name').textContent = (cfg.siteName || '网盘') + ' · 网盘';
+    document.title = (cfg.siteName || '网盘') + ' | 网盘';
+  }
+}).catch(() => {});
+</script>
+</body>
+</html>
