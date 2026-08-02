@@ -12,8 +12,8 @@ describe('/api/config endpoint', function () {
     const { ready, setup, problems, ...site } = body;
 
     assert.deepStrictEqual(site, {
-      siteName: 'Telegraph-Image',
-      siteTitle: 'Telegraph-Image | 免费图床',
+      siteName: '老钱303的云上空间',
+      siteTitle: '老钱303的云上空间 | 免费图床',
       backgroundImage: '',
       enableShortUrls: false,
       uploadRequiresAuth: false,
