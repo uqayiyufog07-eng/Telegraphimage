@@ -1,0 +1,732 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="免费图床，基于 Cloudflare Pages 的图片上传工具">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="stylesheet" href="/assets/theme.css">
+<title>图床 | Telegraph-Image</title>
+<style>
+/* ---- page frame ---- */
+.page { min-height: 100vh; display: flex; flex-direction: column; }
+
+.topbar .brand-mini {
+  display: inline-flex; align-items: center; gap: 10px; margin-right: auto;
+  font-family: var(--font-head); font-weight: 700; font-size: 17px; letter-spacing: .2px;
+}
+.topbar .brand-mini .logo-badge {
+  width: 36px; height: 36px; flex: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--c-yellow); border: var(--bd); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+}
+.topbar .brand-mini .logo-badge .icon { width: 20px; height: 20px; }
+.topbar nav { display: flex; align-items: center; gap: 10px; }
+
+/* custom background layer (set via /api/config backgroundImage) */
+#custom-bg {
+  position: fixed; inset: 0; z-index: -2; display: none;
+  background-size: cover; background-position: center;
+}
+#custom-bg::after {
+  content: ''; position: absolute; inset: 0;
+  background: rgba(255, 253, 245, .55);   /* paper scrim keeps ink text readable */
+}
+
+/* ---- hero ---- */
+.hero { text-align: center; padding: var(--sp-4) var(--sp-3) var(--sp-3); }
+.hero h1 {
+  font-size: clamp(28px, 4.5vw, 42px);
+  font-weight: 700;
+  letter-spacing: -.02em;
+}
+.hero h1 .hl {
+  position: relative; display: inline-block; padding: 0 .12em; white-space: nowrap;
+  background: var(--c-yellow);
+  border: var(--bd); border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  transform: rotate(-1.2deg);
+}
+.hero .sub {
+  margin-top: var(--sp-2);
+  font-size: 16px; font-weight: 500; color: var(--c-ink-soft);
+}
+.hero .sub b { color: var(--c-ink); }
+
+/* ---- setup notice ---- */
+#setup-notice { display: none; width: 100%; max-width: 880px; margin: 0 auto var(--sp-3); }
+#setup-notice .notice { margin-bottom: var(--sp-1); }
+#setup-notice .notice b { flex: none; font-family: var(--font-head); }
+
+/* ---- storage target picker ---- */
+.storage-picker {
+  display: flex; align-items: center; justify-content: center; gap: 10px;
+  width: 100%; max-width: 880px; margin: 0 auto var(--sp-3);
+  font-family: var(--font-head); font-weight: 700; font-size: 13px;
+}
+.storage-picker .tabs { margin-bottom: 0; }
+
+/* ---- bento board ---- */
+.main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: 0 var(--sp-3); }
+.board {
+  display: grid; grid-template-columns: 5fr 7fr; gap: var(--sp-3);
+  width: 100%; max-width: 880px; align-items: stretch;
+}
+
+/* ---- left: upload ---- */
+.uploader {
+  position: relative; overflow: hidden;
+  background: var(--c-yellow);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-pop), box-shadow var(--dur-fast) var(--ease-pop);
+}
+.uploader:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow-lg); }
+.uploader:focus-visible { outline: 3px solid var(--c-blue); outline-offset: 3px; }
+.uploader.dragover {
+  transform: translate(-3px, -3px);
+  box-shadow: 8px 8px 0 var(--c-ink);
+  background: var(--c-teal);
+}
+.uploader .inner {
+  position: relative; z-index: 1;
+  height: 100%; min-height: 340px; padding: var(--sp-4) var(--sp-3);
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2);
+}
+.uploader .deco {
+  position: absolute; border: var(--bd); pointer-events: none;
+}
+.uploader .deco-a {
+  width: 90px; height: 90px; right: -28px; top: -28px;
+  background: var(--c-pink); border-radius: 50%;
+}
+.uploader .deco-b {
+  width: 54px; height: 54px; left: -16px; bottom: 42px;
+  background: var(--c-teal); transform: rotate(14deg);
+}
+.ring {
+  width: 96px; height: 96px; flex: none;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--c-white); border: var(--bd); border-radius: 50%;
+  box-shadow: var(--shadow);
+  position: relative;
+  transition: transform var(--dur-mid) var(--ease-pop);
+}
+.uploader:hover .ring { transform: translateY(-4px) rotate(-3deg); }
+.ring .icon { width: 44px; height: 44px; }
+.ring::before {
+  content: ''; position: absolute; inset: -4px; border-radius: 50%;
+  border: var(--bd-thin); border-color: var(--c-ink);
+  opacity: 0;
+  animation: halo 2.2s ease-out infinite;
+}
+@keyframes halo {
+  0%   { transform: scale(1); opacity: .65 }
+  100% { transform: scale(1.32); opacity: 0 }
+}
+.hint { text-align: center; line-height: 1.7; }
+.hint b {
+  display: block; font-family: var(--font-head);
+  font-size: 20px; font-weight: 700; margin-bottom: 4px;
+}
+.hint small { font-size: 13px; font-weight: 500; color: rgba(20, 20, 20, .72); }
+#file-input { display: none; }
+
+/* ---- right: results ---- */
+.results { display: flex; flex-direction: column; min-width: 0; }
+.results .head {
+  padding: 14px var(--sp-2); border-bottom: var(--bd);
+  display: flex; align-items: center; justify-content: space-between; flex: none;
+  background: var(--c-white);
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.results .head h2 {
+  font-size: 15px; display: inline-flex; align-items: center; gap: 8px;
+}
+.results .head .count {
+  font-family: var(--font-mono); font-size: 12px; color: var(--c-ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+#queue {
+  flex: 1; overflow-y: auto; padding: var(--sp-2);
+  display: flex; flex-direction: column; gap: 10px; min-height: 160px; max-height: 300px;
+}
+#queue:empty::after {
+  content: '上传的文件会显示在这里';
+  margin: auto; font-size: 13px; color: var(--c-ink-soft);
+  border: var(--bd-thin); border-style: dashed; border-radius: var(--radius);
+  padding: var(--sp-2) var(--sp-3); text-align: center;
+}
+.item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 12px;
+  background: var(--c-paper);
+  border: var(--bd-thin); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  animation: slide-in-left var(--dur-mid) var(--ease-pop) both;
+}
+.item .thumb {
+  width: 44px; height: 44px; flex: none; object-fit: cover;
+  border: var(--bd-thin); border-radius: var(--radius-sm);
+  background: var(--c-white);
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+}
+.item .thumb .icon { width: 22px; height: 22px; }
+.item .thumb.is-video { background: var(--c-blue); color: var(--c-white); }
+.item .thumb.is-audio { background: var(--c-pink); }
+.item .thumb.is-doc { background: var(--c-teal); }
+.item .info { flex: 1; min-width: 0; }
+.item .name {
+  font-family: var(--font-head); font-size: 13px; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.item .meta { font-size: 12px; color: var(--c-ink-soft); margin-top: 2px; }
+.item .meta.error { color: #b03030; font-weight: 700; }
+.progress {
+  height: 10px; margin-top: 6px;
+  background: var(--c-white);
+  border: var(--bd-thin); border-radius: 999px; overflow: hidden;
+  transition: height .3s, margin-top .3s, opacity .25s;
+}
+.progress i {
+  display: block; height: 100%; width: 0;
+  background: repeating-linear-gradient(-45deg, var(--c-teal) 0 8px, #3dbdb4 8px 16px);
+  transition: width .15s;
+}
+.item.done .progress { height: 0; margin-top: 0; opacity: 0; border-width: 0; }
+.item.error .progress i { background: var(--c-coral); }
+.item .state { display: inline-flex; align-items: center; gap: 4px; font-weight: 700; color: #0f766e; }
+.item .state .icon { width: 13px; height: 13px; stroke-width: 2.6; }
+.item .badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  margin-left: 6px; padding: 2px 8px;
+  font-family: var(--font-head); font-size: 11px; font-weight: 700;
+  background: var(--c-teal); color: var(--c-white);
+  border-radius: 999px;
+}
+.item .badge.dedup { background: var(--c-coral); }
+.item .badge.tg { background: #0088cc; }
+.item .badge.r2 { background: #f6821f; }
+.item .copy-one {
+  flex: none; width: 36px; height: 36px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--c-white); color: var(--c-ink);
+  border: var(--bd-thin); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm); cursor: pointer;
+  opacity: 0; transition: opacity .15s, transform var(--dur-fast) var(--ease-pop), box-shadow var(--dur-fast) var(--ease-pop);
+}
+.item:hover .copy-one, .item .copy-one:focus-visible { opacity: 1; }
+.item .copy-one:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow); background: var(--c-yellow); }
+.item .copy-one .icon { width: 16px; height: 16px; }
+@media (hover: none) { .item .copy-one { opacity: 1; } }
+
+.out { border-top: var(--bd); padding: var(--sp-2); flex: none; border-radius: 0 0 var(--radius) var(--radius); }
+/* segmented format control */
+.tabs { display: inline-flex; gap: 6px; margin-bottom: 10px; flex-wrap: wrap; }
+.tabs button {
+  border: var(--bd-thin); background: var(--c-white); color: var(--c-ink);
+  border-radius: 999px; padding: 6px 14px;
+  font-family: var(--font-head); font-size: 12px; font-weight: 700;
+  cursor: pointer; box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-fast) var(--ease-pop), box-shadow var(--dur-fast) var(--ease-pop), background var(--dur-fast);
+}
+.tabs button:hover { transform: translate(-1px, -1px); box-shadow: var(--shadow); }
+.tabs button.active { background: var(--c-yellow); transform: translate(1px, 1px); box-shadow: var(--shadow-none); }
+#link-output {
+  white-space: pre; overflow: auto;
+  width: 100%; height: 84px; max-height: 180px; resize: vertical;
+  padding: 10px 12px;
+  border: var(--bd); border-radius: var(--radius-sm);
+  background: var(--c-ink); color: #d7fbe8;
+  font-family: var(--font-mono); font-size: 12px; line-height: 1.7;
+  box-shadow: var(--shadow-sm);
+}
+#link-output:focus { outline: 3px solid var(--c-blue); outline-offset: 1px; }
+.actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+
+/* ---- footer ---- */
+footer {
+  text-align: center; font-size: 13px; font-weight: 500; color: var(--c-ink-soft);
+  padding: var(--sp-4) var(--sp-3) var(--sp-3);
+}
+footer a { font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+footer a:hover { background: var(--c-yellow); }
+
+/* ---- narrow screens: stack the two columns ---- */
+@media (max-width: 760px) {
+  .topbar { padding: 0 var(--sp-2); }
+  .topbar .brand-mini span { display: none; }
+  .hero { padding: var(--sp-3) var(--sp-2) var(--sp-2); }
+  .board { grid-template-columns: 1fr; max-width: 460px; }
+  .uploader .inner { min-height: 0; padding: var(--sp-4) var(--sp-2); }
+  #queue { max-height: 220px; }
+}
+</style>
+</head>
+<body>
+<div id="custom-bg" aria-hidden="true"></div>
+
+<div class="page">
+  <header class="topbar">
+    <a class="brand-mini" href="/">
+      <span class="logo-badge" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>
+      <span id="brand-mini-name">Telegraph-Image</span>
+    </a>
+    <nav>
+      <a class="btn btn-sm" href="/"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>首页</span></a>
+      <a class="btn btn-sm" id="netdisk-link" href="/netdisk"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>网盘</span></a>
+      <a class="btn btn-sm" id="snap-link" href="/snap"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span>快传</span></a>
+      <a class="btn btn-sm" id="localsend-link" href="/localsend"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg><span>局域网</span></a>
+      <a class="btn btn-sm" id="admin-link" href="/admin"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/></svg><span>管理后台</span></a>
+      <a class="btn btn-sm" href="https://github.com/cf-pages/Telegraph-Image" target="_blank" rel="noopener"><svg class="icon icon-sm" viewBox="0 0 24 24" fill="currentColor" stroke="none" aria-hidden="true"><path d="M12 .5A11.5 11.5 0 0 0 .5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.55v-2.1c-3.2.7-3.88-1.4-3.88-1.4-.53-1.34-1.29-1.7-1.29-1.7-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.2 1.77 1.2 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.23-1.28-5.23-5.7 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .96-.3 3.15 1.18a10.9 10.9 0 0 1 5.74 0c2.18-1.48 3.14-1.18 3.14-1.18.63 1.59.23 2.76.12 3.05.74.81 1.18 1.84 1.18 3.1 0 4.43-2.69 5.4-5.25 5.69.41.36.78 1.06.78 2.14v3.17c0 .3.2.66.79.55A11.5 11.5 0 0 0 23.5 12A11.5 11.5 0 0 0 12 .5"/></svg><span>GitHub</span></a>
+    </nav>
+  </header>
+
+  <section class="hero">
+    <h1 id="site-name"><span class="hl">免费图床</span></h1>
+    <p class="sub"><b>点击 / 拖拽 / 粘贴</b> 即传 · 批量上传 · 多格式链接一键复制</p>
+  </section>
+
+  <div class="main">
+    <div id="setup-notice" role="status" aria-live="polite"></div>
+
+    <div class="storage-picker" id="storage-picker" hidden>
+      <span>存储位置</span>
+      <span class="tabs" id="storage-tabs"></span>
+    </div>
+
+    <div class="board">
+      <div class="card uploader" id="dropzone" role="button" tabindex="0" aria-label="选择、拖拽或粘贴文件上传">
+        <span class="deco deco-a" aria-hidden="true"></span>
+        <span class="deco deco-b" aria-hidden="true"></span>
+        <div class="inner">
+          <div class="ring">
+            <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M16 16l-4-4-4 4M12 12v9"/><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"/></svg>
+          </div>
+          <p class="hint"><b>点击、拖拽或粘贴上传</b><small>支持批量上传 · 图片 / 视频 / 音频 / 文档</small></p>
+          <button class="btn" type="button" id="pick"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 16.5V4.5m0 0L7.25 9.25M12 4.5l4.75 4.75M4 16.5v2.25A1.75 1.75 0 0 0 5.75 20.5h12.5A1.75 1.75 0 0 0 20 18.75V16.5"/></svg><span>选择上传文件</span></button>
+        </div>
+      </div>
+      <input id="file-input" type="file" multiple>
+
+      <div class="card results">
+        <div class="head">
+          <h2><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8.5 6.5h12M8.5 12h12M8.5 17.5h12M3.75 6.5h.01M3.75 12h.01M3.75 17.5h.01"/></svg>上传结果</h2>
+          <span class="count" id="file-count"></span>
+        </div>
+        <div id="queue"></div>
+        <div class="out" id="results-card" hidden>
+          <div class="tabs" id="format-tabs">
+            <button type="button" data-format="url" class="active">URL</button>
+            <button type="button" data-format="markdown">Markdown</button>
+            <button type="button" data-format="bbcode">BBCode</button>
+            <button type="button" data-format="html">HTML</button>
+          </div>
+          <textarea id="link-output" readonly spellcheck="false"></textarea>
+          <div class="actions">
+            <button type="button" class="btn btn-sm" id="clear-all"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.75 6.75h16.5M9 6.75V5A1.5 1.5 0 0 1 10.5 3.5h3A1.5 1.5 0 0 1 15 5v1.75M5.75 6.75l.8 12.1A2 2 0 0 0 8.55 20.7h6.9a2 2 0 0 0 2-1.85l.8-12.1"/></svg><span>清空</span></button>
+            <button type="button" class="btn btn-primary btn-sm" id="copy-all"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11.5" height="11.5" rx="2.2"/><path d="M5.5 15.5H5a1.5 1.5 0 0 1-1.5-1.5V5A1.5 1.5 0 0 1 5 3.5h9A1.5 1.5 0 0 1 15.5 5v.5"/></svg><span>复制全部</span></button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <span>基于 <a href="https://github.com/cf-pages/Telegraph-Image" target="_blank" rel="noopener">Telegraph-Image</a> · </span>
+    <a href="/index-nuxt.html">旧版界面</a>
+  </footer>
+</div>
+<div class="toast-zone"><div id="toast" class="toast" role="status" aria-live="polite"></div></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var TICK_ICON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4.5 12.5l5 5 10-11"/></svg>';
+  var COPY_ICON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11.5" height="11.5" rx="2.2"/><path d="M5.5 15.5H5a1.5 1.5 0 0 1-1.5-1.5V5A1.5 1.5 0 0 1 5 3.5h9A1.5 1.5 0 0 1 15.5 5v.5"/></svg>';
+  var VIDEO_ICON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="2.5" y="5" width="14" height="14" rx="2"/><path d="M16.5 10.5l5-3v9l-5-3z"/></svg>';
+  var AUDIO_ICON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>';
+  var DOC_ICON = '<svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M14 2.5H6a2 2 0 0 0-2 2v15a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-11z"/><path d="M14 2.5v6h6"/></svg>';
+
+  var MAX_CONCURRENT = 3;
+  var uploaded = [];        // { url, fileName }
+  var activeUploads = 0;
+  var pending = [];
+  var currentFormat = 'url';
+  var currentProvider = null;
+  var availableProviders = [];
+
+  var dropzone = document.getElementById('dropzone');
+  var fileInput = document.getElementById('file-input');
+  var queue = document.getElementById('queue');
+  var resultsCard = document.getElementById('results-card');
+  var linkOutput = document.getElementById('link-output');
+  var fileCount = document.getElementById('file-count');
+  var toast = document.getElementById('toast');
+  var toastTimer = null;
+
+  // ---- site config (/api/config) ----
+  fetch('/api/config').then(function (res) {
+    if (!res.ok) throw new Error('config unavailable');
+    return res.json();
+  }).then(function (config) {
+    if (config.siteName) {
+      var mini = document.getElementById('brand-mini-name');
+      if (mini) mini.textContent = config.siteName;
+    }
+    if (config.siteTitle) {
+      document.title = '图床 | ' + config.siteName;
+    }
+    // An explicit background replaces the dot-pattern backdrop.
+    if (config.backgroundImage) {
+      var bg = document.getElementById('custom-bg');
+      bg.style.backgroundImage = 'url("' + String(config.backgroundImage).replace(/"/g, '%22') + '")';
+      bg.style.display = 'block';
+    }
+    if (config.showAdminEntry === false) {
+      var adminLink = document.getElementById('admin-link');
+      if (adminLink) adminLink.remove();
+    }
+    // Hide the netdisk entry when R2 is not bound (netdisk requires img_r2)
+    if (!config.netdiskEnabled) {
+      var netdiskLink = document.getElementById('netdisk-link');
+      if (netdiskLink) netdiskLink.remove();
+    }
+    renderSetupProblems(config.problems);
+    renderStoragePicker(config.storage);
+  }).catch(function () { /* defaults already in markup */ });
+
+  function renderStoragePicker(storage) {
+    if (!storage || !storage.available || storage.available.length <= 1) return;
+    availableProviders = storage.available;
+    currentProvider = storage.default || 'telegram';
+    var picker = document.getElementById('storage-picker');
+    var tabs = document.getElementById('storage-tabs');
+    picker.hidden = false;
+
+    var labels = { telegram: 'Telegram', r2: 'R2' };
+    storage.available.forEach(function (prov) {
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.dataset.provider = prov;
+      btn.textContent = labels[prov] || prov;
+      if (prov === currentProvider) btn.classList.add('active');
+      btn.addEventListener('click', function () {
+        currentProvider = prov;
+        tabs.querySelectorAll('button').forEach(function (b) {
+          b.classList.toggle('active', b === btn);
+        });
+      });
+      tabs.appendChild(btn);
+    });
+  }
+
+  // Show deployment problems (missing bindings/variables) instead of letting the
+  // first upload fail with an opaque error.
+  function renderSetupProblems(problems) {
+    if (!problems || !problems.length) return;
+    var box = document.getElementById('setup-notice');
+    var titles = { error: '需要处理', warning: '注意', info: '提示' };
+    problems.forEach(function (problem) {
+      var el = document.createElement('div');
+      el.className = 'notice notice-' + (problem.severity || 'info');
+      var label = document.createElement('b');
+      label.textContent = titles[problem.severity] || titles.info;
+      el.appendChild(label);
+      el.appendChild(document.createTextNode(problem.message));
+      box.appendChild(el);
+    });
+    box.style.display = 'block';
+  }
+
+  // ---- input wiring: click / drag / paste ----
+  dropzone.addEventListener('click', function () { fileInput.click(); });
+  dropzone.addEventListener('keydown', function (event) {
+    if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); fileInput.click(); }
+  });
+  document.getElementById('pick').addEventListener('click', function (event) {
+    event.stopPropagation();   // the card itself already opens the picker
+    fileInput.click();
+  });
+  fileInput.addEventListener('change', function () {
+    enqueueFiles(fileInput.files);
+    fileInput.value = '';
+  });
+
+  ['dragenter', 'dragover'].forEach(function (type) {
+    dropzone.addEventListener(type, function (event) {
+      event.preventDefault();
+      dropzone.classList.add('dragover');
+    });
+  });
+  ['dragleave', 'drop'].forEach(function (type) {
+    dropzone.addEventListener(type, function (event) {
+      event.preventDefault();
+      dropzone.classList.remove('dragover');
+    });
+  });
+  dropzone.addEventListener('drop', function (event) {
+    if (event.dataTransfer && event.dataTransfer.files.length) {
+      enqueueFiles(event.dataTransfer.files);
+    }
+  });
+
+  document.addEventListener('paste', function (event) {
+    if (!event.clipboardData) return;
+    var files = [];
+    for (var i = 0; i < event.clipboardData.items.length; i++) {
+      var item = event.clipboardData.items[i];
+      if (item.kind === 'file') {
+        var file = item.getAsFile();
+        if (file) files.push(file);
+      }
+    }
+    if (files.length) enqueueFiles(files);
+  });
+
+  // ---- upload queue ----
+  function enqueueFiles(fileList) {
+    Array.prototype.forEach.call(fileList, function (file) {
+      var item = createQueueItem(file);
+      pending.push({ file: file, item: item });
+    });
+    updateCount();
+    pumpQueue();
+  }
+
+  function pumpQueue() {
+    while (activeUploads < MAX_CONCURRENT && pending.length) {
+      var next = pending.shift();
+      activeUploads++;
+      uploadFile(next.file, next.item);
+    }
+  }
+
+  function updateCount() {
+    var total = queue.children.length;
+    fileCount.textContent = total ? '共 ' + total + ' 个文件' : '';
+  }
+
+  function createQueueItem(file) {
+    var item = document.createElement('div');
+    item.className = 'item';
+
+    var thumb;
+    if (file.type.indexOf('image/') === 0) {
+      thumb = document.createElement('img');
+      thumb.className = 'thumb';
+      thumb.alt = '';
+      thumb.src = URL.createObjectURL(file);
+      thumb.onload = function () { URL.revokeObjectURL(thumb.src); };
+      thumb.onerror = function () { URL.revokeObjectURL(thumb.src); thumb.style.display = 'none'; };
+    } else {
+      thumb = document.createElement('div');
+      var kind = file.type.indexOf('video/') === 0 ? 'is-video'
+        : file.type.indexOf('audio/') === 0 ? 'is-audio' : 'is-doc';
+      thumb.className = 'thumb ' + kind;
+      thumb.innerHTML = kind === 'is-video' ? VIDEO_ICON : kind === 'is-audio' ? AUDIO_ICON : DOC_ICON;
+    }
+
+    var info = document.createElement('div');
+    info.className = 'info';
+    var name = document.createElement('div');
+    name.className = 'name';
+    name.textContent = file.name;
+    var meta = document.createElement('div');
+    meta.className = 'meta';
+    meta.textContent = formatSize(file.size) + ' · 等待上传…';
+    var progress = document.createElement('div');
+    progress.className = 'progress';
+    progress.appendChild(document.createElement('i'));
+    info.appendChild(name);
+    info.appendChild(meta);
+    info.appendChild(progress);
+
+    item.appendChild(thumb);
+    item.appendChild(info);
+    queue.appendChild(item);
+
+    return { root: item, meta: meta, bar: progress.firstChild };
+  }
+
+  function uploadFile(file, item) {
+    var formData = new FormData();
+    formData.append('file', file);
+    if (currentProvider) {
+      formData.append('provider', currentProvider);
+    }
+
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/upload');
+
+    xhr.upload.onprogress = function (event) {
+      if (event.lengthComputable) {
+        var percent = Math.round(event.loaded / event.total * 100);
+        item.bar.style.width = percent + '%';
+        item.meta.textContent = formatSize(file.size) + ' · 上传中 ' + percent + '%';
+      }
+    };
+
+    xhr.onload = function () {
+      var src = null;
+      var errorMessage = null;
+      var isDedup = false;
+      try {
+        var data = JSON.parse(xhr.responseText);
+        if (xhr.status === 200 && data && data[0] && data[0].src) {
+          src = data[0].src;
+          isDedup = !!data[0].deduplicated;
+        } else {
+          errorMessage = (data && data.error) || ('HTTP ' + xhr.status);
+        }
+      } catch (parseError) {
+        errorMessage = 'HTTP ' + xhr.status;
+      }
+
+      if (src) {
+        finishItem(item, file, src, isDedup);
+      } else {
+        failItem(item, file, errorMessage);
+      }
+      activeUploads--;
+      pumpQueue();
+    };
+
+    xhr.onerror = function () {
+      failItem(item, file, '网络错误');
+      activeUploads--;
+      pumpQueue();
+    };
+
+    xhr.send(formData);
+  }
+
+  function finishItem(item, file, src, isDedup) {
+    var fullUrl = location.origin + src;
+    uploaded.push({ url: fullUrl, fileName: file.name });
+
+    item.root.classList.add('done');
+    item.bar.style.width = '100%';
+    item.meta.textContent = '';
+    var state = document.createElement('span');
+    state.className = 'state';
+    state.innerHTML = TICK_ICON;
+    state.appendChild(document.createTextNode(isDedup ? '已存在' : '上传成功'));
+    item.meta.appendChild(document.createTextNode(formatSize(file.size) + ' · '));
+    item.meta.appendChild(state);
+
+    if (isDedup) {
+      var badge = document.createElement('span');
+      badge.className = 'badge dedup';
+      badge.textContent = '秒传';
+      item.meta.appendChild(badge);
+    }
+
+    var provBadge = document.createElement('span');
+    provBadge.className = 'badge ' + (currentProvider === 'r2' ? 'r2' : 'tg');
+    provBadge.textContent = currentProvider === 'r2' ? 'R2' : 'TG';
+    item.meta.appendChild(provBadge);
+
+    var copyButton = document.createElement('button');
+    copyButton.type = 'button';
+    copyButton.className = 'copy-one';
+    copyButton.title = '复制链接';
+    copyButton.setAttribute('aria-label', '复制 ' + file.name + ' 的链接');
+    copyButton.innerHTML = COPY_ICON;
+    copyButton.addEventListener('click', function () {
+      copyText(formatLink({ url: fullUrl, fileName: file.name }, currentFormat));
+    });
+    item.root.appendChild(copyButton);
+
+    renderOutput();
+  }
+
+  function failItem(item, file, message) {
+    item.root.classList.add('error');
+    item.bar.style.width = '100%';
+    item.meta.className = 'meta error';
+    item.meta.textContent = '上传失败：' + message;
+  }
+
+  // ---- link formats ----
+  function formatLink(entry, format) {
+    switch (format) {
+      case 'markdown': return '![' + entry.fileName + '](' + entry.url + ')';
+      case 'bbcode': return '[img]' + entry.url + '[/img]';
+      case 'html': return '<img src="' + entry.url + '" alt="' + escapeHtml(entry.fileName) + '">';
+      default: return entry.url;
+    }
+  }
+
+  function escapeHtml(text) {
+    return String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  function renderOutput() {
+    resultsCard.hidden = uploaded.length === 0;
+    linkOutput.value = uploaded.map(function (entry) {
+      return formatLink(entry, currentFormat);
+    }).join('\n');
+  }
+
+  document.getElementById('format-tabs').addEventListener('click', function (event) {
+    var button = event.target.closest('button[data-format]');
+    if (!button) return;
+    currentFormat = button.dataset.format;
+    this.querySelectorAll('button').forEach(function (other) {
+      other.classList.toggle('active', other === button);
+    });
+    renderOutput();
+  });
+
+  document.getElementById('copy-all').addEventListener('click', function () {
+    if (linkOutput.value) copyText(linkOutput.value);
+  });
+
+  document.getElementById('clear-all').addEventListener('click', function () {
+    uploaded = [];
+    queue.textContent = '';
+    updateCount();
+    renderOutput();
+  });
+
+  // ---- helpers ----
+  function copyText(text) {
+    var done = function () { showToast('已复制到剪贴板'); };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () { legacyCopy(text); done(); });
+    } else {
+      legacyCopy(text);
+      done();
+    }
+  }
+
+  function legacyCopy(text) {
+    var textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.style.position = 'fixed';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    document.execCommand('copy');
+    document.body.removeChild(textarea);
+  }
+
+  function showToast(message) {
+    toast.textContent = message;
+    toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 1800);
+  }
+
+  function formatSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+  }
+})();
+</script>
+</body>
+</html>

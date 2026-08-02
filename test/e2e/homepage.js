@@ -92,9 +92,23 @@ function makePng(file, rgb) {
   check('SITE_NAME 经 /api/config 生效', bodyText.includes('E2E Test Host') || title.includes('E2E Test Host'),
     `title="${title}"`);
 
+  // --- 1b. landing page exposes the three core feature entries
+  const coreLinks = await page.evaluate(() => {
+    const hrefs = [...document.querySelectorAll('a[href]')].map(a => a.getAttribute('href'));
+    return {
+      imgbed: hrefs.some(h => h === '/imgbed' || h === '/imgbed.html'),
+      netdisk: hrefs.some(h => h === '/netdisk' || h === '/netdisk.html'),
+      snap: hrefs.some(h => h === '/snap' || h === '/snap.html'),
+    };
+  });
+  check('首页展示图床入口', coreLinks.imgbed);
+  check('首页展示网盘入口', coreLinks.netdisk);
+  check('首页展示快传入口', coreLinks.snap);
+
   await page.screenshot({ path: path.join(OUT, 'shot-1-home.png'), fullPage: true });
 
-  // --- 2. file input exists and accepts multiple files
+  // --- 2. file input exists and accepts multiple files (upload page: /imgbed)
+  await page.goto(BASE + '/imgbed', { waitUntil: 'networkidle' });
   const fileInput = page.locator('input[type=file]').first();
   const inputCount = await page.locator('input[type=file]').count();
   const isMultiple = inputCount ? await fileInput.evaluate(el => el.hasAttribute('multiple')) : false;

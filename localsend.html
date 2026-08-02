@@ -1,0 +1,980 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="局域网传输 - 兼容 LocalSend 协议，同一 Wi-Fi 下设备间快速互传文件">
+<link rel="icon" type="image/x-icon" href="/favicon.ico">
+<link rel="stylesheet" href="/assets/theme.css">
+<title>局域网传输 | Telegraph-Image</title>
+<style>
+.page { min-height: 100vh; display: flex; flex-direction: column; }
+.topbar .brand-mini { display: inline-flex; align-items: center; gap: 10px; margin-right: auto; font-family: var(--font-head); font-weight: 700; font-size: 17px; }
+.topbar .brand-mini .logo-badge { width: 36px; height: 36px; flex: none; display: inline-flex; align-items: center; justify-content: center; background: var(--c-blue); color: var(--c-white); border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+.topbar .brand-mini .logo-badge .icon { width: 20px; height: 20px; }
+.topbar nav { display: flex; align-items: center; gap: 10px; }
+
+.ls-main { flex: 1; width: 100%; max-width: 760px; margin: 0 auto; padding: var(--sp-4) var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-3); }
+
+.ls-hero { text-align: center; }
+.ls-hero h1 { font-size: clamp(28px, 5vw, 40px); font-weight: 700; }
+.ls-hero h1 .hl { background: var(--c-blue); color: var(--c-white); padding: 0 .14em; border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow); }
+.ls-hero .sub { margin-top: var(--sp-2); font-size: 15px; color: var(--c-ink-soft); }
+.ls-hero .sub b { color: var(--c-ink); }
+
+.snap-banner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 12px var(--sp-2);
+  background: var(--c-yellow); border: var(--bd); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); font-size: 14px; font-weight: 600;
+}
+.snap-banner .icon { flex: none; }
+.snap-banner a { margin-left: auto; }
+
+/* mode tabs */
+.mode-tabs { display: flex; gap: 10px; }
+.mode-tabs button {
+  flex: 1; min-height: 52px; padding: 12px;
+  font-family: var(--font-head); font-size: 16px; font-weight: 700;
+  background: var(--c-white); color: var(--c-ink);
+  border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  transition: all var(--dur-fast) var(--ease-pop);
+}
+.mode-tabs button:hover { transform: translate(-1px,-1px); box-shadow: var(--shadow); }
+.mode-tabs button.active { background: var(--c-blue); color: var(--c-white); transform: translate(2px,2px); box-shadow: var(--shadow-none); }
+
+.panel { display: none; flex-direction: column; gap: var(--sp-3); }
+.panel.active { display: flex; animation: pop-in var(--dur-mid) var(--ease-pop) both; }
+
+.ls-card { background: var(--c-white); border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.ls-card .ls-head { padding: 13px var(--sp-2); border-bottom: var(--bd); background: var(--c-paper-warm); display: flex; align-items: center; gap: 10px; }
+.ls-card .ls-head h2 { font-size: 16px; }
+.ls-card .ls-head .step { width: 26px; height: 26px; flex: none; display: inline-flex; align-items: center; justify-content: center; background: var(--c-blue); color: var(--c-white); border: var(--bd-thin); border-radius: 50%; font-family: var(--font-head); font-size: 13px; font-weight: 700; }
+.ls-card .ls-body { padding: var(--sp-2); display: flex; flex-direction: column; gap: 12px; }
+
+.row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+.row .grow { flex: 1; min-width: 140px; }
+.row label { font-family: var(--font-head); font-size: 13px; font-weight: 700; white-space: nowrap; }
+.mono-input { font-family: var(--font-mono); font-size: 14px; }
+.small-input { width: 110px; flex: none !important; min-width: 0 !important; }
+
+/* device list */
+.device-list { display: flex; flex-direction: column; gap: 8px; }
+#device-list:empty::after { content: '尚无设备 — 手动添加或扫描局域网'; display: block; text-align: center; padding: var(--sp-2); font-size: 13px; color: var(--c-ink-soft); border: var(--bd-thin); border-style: dashed; border-radius: var(--radius); }
+.dev {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px;
+  background: var(--c-paper); border: var(--bd-thin); border-radius: var(--radius);
+  cursor: pointer; transition: all var(--dur-fast) var(--ease-pop);
+}
+.dev:hover { transform: translate(-1px,-1px); box-shadow: var(--shadow-sm); }
+.dev.selected { background: var(--c-yellow); box-shadow: var(--shadow-sm); }
+.dev .dico { width: 38px; height: 38px; flex: none; display: flex; align-items: center; justify-content: center; background: var(--c-white); border: var(--bd-thin); border-radius: var(--radius-sm); }
+.dev .dico .icon { width: 20px; height: 20px; }
+.dev .info { flex: 1; min-width: 0; }
+.dev .name { font-family: var(--font-head); font-weight: 700; font-size: 14px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.dev .meta { font-family: var(--font-mono); font-size: 11px; color: var(--c-ink-soft); margin-top: 2px; }
+.dev .dot { width: 9px; height: 9px; border-radius: 50%; background: #9ca3af; flex: none; }
+.dev .dot.ok { background: #22c55e; }
+.dev .dot.bad { background: #ef4444; }
+.dev .del { flex: none; width: 30px; height: 30px; min-height: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.dev .del .icon { width: 14px; height: 14px; }
+
+/* scan progress */
+.scan-bar { height: 8px; background: var(--c-paper-warm); border: var(--bd-thin); border-radius: 999px; overflow: hidden; }
+.scan-bar i { display: block; height: 100%; width: 0; background: repeating-linear-gradient(-45deg, var(--c-blue) 0 8px, #5aa7f5 8px 16px); transition: width .2s; }
+
+/* file dropzone */
+.ls-drop {
+  border: 3px dashed var(--c-ink); border-radius: var(--radius);
+  padding: var(--sp-3); text-align: center; cursor: pointer;
+  background: var(--c-paper); transition: all var(--dur-fast);
+}
+.ls-drop:hover { background: var(--c-paper-warm); }
+.ls-drop.dragover { background: var(--c-teal); color: var(--c-white); }
+.ls-drop b { font-family: var(--font-head); font-size: 16px; }
+.ls-drop small { display: block; margin-top: 4px; font-size: 12px; color: var(--c-ink-soft); }
+.ls-drop.dragover small { color: var(--c-white); }
+
+/* transfer rows */
+.xfile { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border: var(--bd-thin); border-radius: var(--radius-sm); background: var(--c-paper); }
+.xfile .fname { flex: 1; min-width: 0; font-weight: 600; font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.xfile .fsize { font-size: 12px; color: var(--c-ink-soft); flex: none; font-family: var(--font-mono); }
+.xfile .fstat { font-size: 12px; font-weight: 700; flex: none; min-width: 72px; text-align: right; }
+.xfile .fstat.ok { color: #16a34a; }
+.xfile .fstat.ing { color: #2563eb; }
+.xfile .fstat.err { color: #dc2626; }
+.xfile .fstat.skip { color: #d97706; }
+.xfile .pbar { width: 100%; height: 5px; background: var(--c-white); border-radius: 3px; overflow: hidden; margin-top: 4px; border: 1px solid rgba(20,20,20,.2); }
+.xfile .pbar i { display: block; height: 100%; width: 0; background: var(--c-blue); transition: width .15s; }
+.xfile .xrm { flex: none; width: 26px; height: 26px; min-height: 26px; padding: 0; border-width: 2px; }
+.xfile .xrm .icon { width: 12px; height: 12px; }
+.xrow2 { flex-basis: 100%; }
+
+/* status line */
+.status-line { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; padding: 10px 12px; border: var(--bd-thin); border-radius: var(--radius-sm); background: var(--c-paper-warm); }
+.status-line .dot { width: 10px; height: 10px; border-radius: 50%; background: #9ca3af; flex: none; }
+.status-line .dot.wait { background: #f59e0b; animation: pulse 1.2s infinite; }
+.status-line .dot.ok { background: #22c55e; }
+.status-line .dot.err { background: #ef4444; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+/* pin row */
+.pin-row { display: none; gap: 8px; align-items: center; padding: 10px 12px; background: var(--c-yellow); border: var(--bd-thin); border-radius: var(--radius-sm); font-size: 13px; font-weight: 700; }
+.pin-row.show { display: flex; }
+.pin-row input { width: 120px; }
+
+/* guide */
+details.guide { background: var(--c-white); border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow); }
+details.guide summary { cursor: pointer; padding: 14px var(--sp-2); font-family: var(--font-head); font-weight: 700; font-size: 15px; display: flex; align-items: center; gap: 10px; list-style: none; }
+details.guide summary::-webkit-details-marker { display: none; }
+details.guide summary .arrow { margin-left: auto; transition: transform var(--dur-fast); }
+details.guide[open] summary .arrow { transform: rotate(180deg); }
+details.guide .gbody { padding: 0 var(--sp-2) var(--sp-2); font-size: 14px; line-height: 1.75; }
+details.guide .gbody ol { padding-left: 22px; display: flex; flex-direction: column; gap: 8px; }
+details.guide .gbody b { font-family: var(--font-head); }
+details.guide .gbody code { font-family: var(--font-mono); font-size: 12px; background: var(--c-paper-warm); border: 1px solid rgba(20,20,20,.25); border-radius: 4px; padding: 1px 6px; }
+
+footer { text-align: center; font-size: 13px; font-weight: 500; color: var(--c-ink-soft); padding: var(--sp-4) var(--sp-3) var(--sp-3); }
+footer a { font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+footer a:hover { background: var(--c-yellow); }
+
+.hidden { display: none !important; }
+
+@media (max-width: 640px) {
+  .topbar .brand-mini span { display: none; }
+  .ls-main { padding: var(--sp-3) var(--sp-2); }
+  .mode-tabs button { font-size: 14px; }
+}
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="topbar">
+    <a class="brand-mini" href="/">
+      <span class="logo-badge" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.55a11 11 0 0 1 14.08 0"/><path d="M1.42 9a16 16 0 0 1 21.16 0"/><path d="M8.53 16.11a6 6 0 0 1 6.95 0"/><line x1="12" y1="20" x2="12.01" y2="20"/></svg></span>
+      <span id="brand-mini-name">Telegraph-Image</span>
+    </a>
+    <nav>
+      <a class="btn btn-sm" href="/"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>首页</span></a>
+      <a class="btn btn-sm" href="/imgbed"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><span>图床</span></a>
+      <a class="btn btn-sm" href="/netdisk"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>网盘</span></a>
+      <a class="btn btn-sm" href="/snap"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span>快传</span></a>
+    </nav>
+  </header>
+
+  <main class="ls-main">
+    <section class="ls-hero">
+      <h1><span class="hl">局域网</span>传输</h1>
+      <p class="sub">兼容 <b>LocalSend</b> 协议 · 同一 Wi-Fi 下向手机 / 电脑直传文件 · 无需互联网</p>
+    </section>
+
+    <div class="snap-banner">
+      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+      <span>两台设备都只有浏览器？用 <b>快传</b> 更合适 —— WebRTC P2P 直连，无需任何配置。</span>
+      <a class="btn btn-sm" href="/snap"><span>打开快传</span></a>
+    </div>
+
+    <div id="net-notice"></div>
+
+    <div class="mode-tabs" role="tablist">
+      <button type="button" id="tab-send" class="active" role="tab" aria-selected="true">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        发送到设备
+      </button>
+      <button type="button" id="tab-recv" role="tab" aria-selected="false">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        从设备接收
+      </button>
+    </div>
+
+    <!-- ================= 发送面板 ================= -->
+    <div class="panel active" id="panel-send">
+      <!-- 设备 -->
+      <section class="ls-card">
+        <div class="ls-head"><span class="step">1</span><h2>选择接收设备</h2></div>
+        <div class="ls-body">
+          <div class="row">
+            <input class="input grow mono-input" id="device-input" type="text" placeholder="设备地址，如 192.168.1.8 或 192.168.1.8:53317" spellcheck="false">
+            <button class="btn btn-info" type="button" id="btn-add">
+              <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg><span>添加设备</span>
+            </button>
+          </div>
+          <div class="row">
+            <label for="scan-prefix">网段</label>
+            <input class="input small-input mono-input" id="scan-prefix" type="text" value="192.168.1." spellcheck="false" style="width:130px">
+            <label for="scan-port">端口</label>
+            <input class="input small-input mono-input" id="scan-port" type="number" value="53317" min="1" max="65535" style="width:90px">
+            <button class="btn" type="button" id="btn-scan">
+              <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.5" y2="16.5"/></svg><span>扫描局域网</span>
+            </button>
+          </div>
+          <div class="scan-bar hidden" id="scan-bar"><i id="scan-fill"></i></div>
+          <div class="device-list" id="device-list"></div>
+        </div>
+      </section>
+
+      <!-- 文件 -->
+      <section class="ls-card">
+        <div class="ls-head"><span class="step">2</span><h2>选择要发送的文件</h2></div>
+        <div class="ls-body">
+          <div class="ls-drop" id="ls-drop" role="button" tabindex="0">
+            <b>点击选择 / 拖拽文件到此处</b>
+            <small>支持多选 · 文件仅经局域网直传，不经过云端</small>
+          </div>
+          <input type="file" id="ls-file-input" multiple hidden>
+          <div class="device-list" id="send-file-list"></div>
+        </div>
+      </section>
+
+      <!-- 发送 -->
+      <section class="ls-card">
+        <div class="ls-head"><span class="step">3</span><h2>发送</h2></div>
+        <div class="ls-body">
+          <div class="row">
+            <label for="alias-input">我的设备名</label>
+            <input class="input grow" id="alias-input" type="text" maxlength="40" spellcheck="false">
+          </div>
+          <div class="status-line" id="send-status"><span class="dot"></span><span id="send-status-text">请选择设备与文件</span></div>
+          <div class="pin-row" id="pin-row">
+            <span>对方需要 PIN 码：</span>
+            <input class="input mono-input" id="pin-input" type="text" inputmode="numeric" maxlength="8" placeholder="输入 PIN">
+            <button class="btn btn-sm btn-primary" type="button" id="btn-pin-retry">重试</button>
+          </div>
+          <div class="row">
+            <button class="btn btn-info grow" type="button" id="btn-send" disabled>
+              <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              <span>开始发送</span>
+            </button>
+            <button class="btn btn-danger hidden" type="button" id="btn-cancel"><span>取消传输</span></button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- ================= 接收面板 ================= -->
+    <div class="panel" id="panel-recv">
+      <section class="ls-card">
+        <div class="ls-head">
+          <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          <h2>从 LocalSend 设备接收文件</h2>
+        </div>
+        <div class="ls-body">
+          <p style="font-size:14px;line-height:1.7">在 LocalSend 应用中选择文件后点 <b>「通过链接分享」</b>，然后输入应用上显示的设备地址：</p>
+          <div class="row">
+            <input class="input grow mono-input" id="recv-input" type="text" placeholder="设备地址，如 192.168.1.8 或 192.168.1.8:53317" spellcheck="false">
+            <button class="btn btn-info" type="button" id="btn-recv"><span>获取文件列表</span></button>
+          </div>
+          <div class="status-line hidden" id="recv-status"><span class="dot wait"></span><span id="recv-status-text"></span></div>
+          <div class="device-list" id="recv-list"></div>
+          <div class="row hidden" id="recv-open-row">
+            <button class="btn grow" type="button" id="btn-recv-open">
+              <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+              <span>列表获取失败？直接在新标签页打开设备链接</span>
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- 排障指南 -->
+    <details class="guide" id="guide">
+      <summary>
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+        连接不上？查看使用条件与排障指南
+        <svg class="icon arrow" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </summary>
+      <div class="gbody">
+        <ol>
+          <li><b>关闭接收设备的加密（重要）</b>：LocalSend 默认使用带自签名证书的 HTTPS，浏览器不信任该证书。请在对方设备的 LocalSend 中打开 <b>设置 → 网络 → 关闭「加密」</b>（此时使用 HTTP 传输，指纹为随机串，仍在局域网内，安全影响可接受）。</li>
+          <li><b>通过 HTTP 访问本站</b>：如果当前地址是 <code>https://</code>，浏览器会拦截页面发往局域网 <code>http://</code> 地址的请求（混合内容限制）。请将本站部署在内网并通过 <code>http://内网IP:端口</code> 访问（例如本地运行 <code>npm start</code>），或在浏览器站点设置中允许「不安全内容」。</li>
+          <li><b>确认在同一局域网</b>：设备地址通常是 <code>192.168.x.x</code>，端口默认 <code>53317</code>。可在 LocalSend 应用「接收」页或「设置 → 网络」中查看本机 IP 与端口。</li>
+          <li><b>浏览器无法被「发现」</b>：浏览器不能监听端口、也不能收发组播包，所以本页只能主动连接设备，不会出现在对方设备列表里。设备互传请双方都用 LocalSend，浏览器互传请用<a href="/snap"><b>快传</b></a>。</li>
+          <li><b>PIN 保护</b>：若对方开启了 PIN，发送时按提示输入即可。</li>
+          <li><b>云端部署的限制</b>：部署在 Cloudflare 等公网时，服务器中继无法触达您的内网设备，页面将只能直连（受浏览器限制较多）。内网自托管时中继可用，体验最佳。</li>
+        </ol>
+      </div>
+    </details>
+  </main>
+
+  <footer>
+    <span>兼容 <a href="https://localsend.org" target="_blank" rel="noopener">LocalSend</a> 协议 v2 · </span>
+    <a href="/">返回首页</a>
+  </footer>
+</div>
+<div class="toast-zone"><div id="toast" class="toast" role="status" aria-live="polite"></div></div>
+
+<script>
+(function () {
+  'use strict';
+
+  /* ================================================================
+   * LocalSend 协议 v2 浏览器客户端（发送方 / 链接接收方）
+   *
+   * 浏览器限制与对策：
+   *  - 无法监听端口/组播 → 不能被发现，只能主动连接（手动 IP / 扫描）
+   *  - 目标服务无 CORS 头 → 直连 fetch 无法读取响应，需经本站
+   *    /api/lan/relay 中继（内网自托管时可用；云端部署无法触达内网）
+   *  - LocalSend 默认 HTTPS 自签名证书 → 需对方关闭加密后用 HTTP
+   * ================================================================ */
+
+  var API = '/api/localsend/v2';
+  var RELAY = '/api/lan/relay';
+
+  // ---------- tiny helpers ----------
+  function $(id) { return document.getElementById(id); }
+  function toast(msg) {
+    var t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timer);
+    t._timer = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+  function fmtSize(bytes) {
+    if (bytes < 1024) return bytes + ' B';
+    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+    if (bytes < 1024 * 1024 * 1024) return (bytes / 1024 / 1024).toFixed(2) + ' MB';
+    return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+  }
+  function randHex(n) {
+    var s = '';
+    var cryptoObj = window.crypto || window.msCrypto;
+    var buf = new Uint8Array(n / 2);
+    cryptoObj.getRandomValues(buf);
+    for (var i = 0; i < buf.length; i++) s += ('0' + buf[i].toString(16)).slice(-2);
+    return s;
+  }
+  function uuid() {
+    if (crypto.randomUUID) return crypto.randomUUID();
+    return 'f-' + Date.now().toString(36) + '-' + randHex(8);
+  }
+  function load(key, fallback) {
+    try {
+      var raw = localStorage.getItem(key);
+      return raw ? JSON.parse(raw) : fallback;
+    } catch (e) { return fallback; }
+  }
+  function save(key, val) {
+    try { localStorage.setItem(key, JSON.stringify(val)); } catch (e) {}
+  }
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  // ---------- settings & state ----------
+  var settings = load('ls_settings_v1', null);
+  if (!settings) {
+    settings = { alias: '网页传输-' + randHex(4), fingerprint: randHex(32) };
+    save('ls_settings_v1', settings);
+  }
+  var devices = load('ls_devices_v1', []);       // [{ip, port, alias, model, fingerprint, protocol, transport}]
+  var sendFiles = [];                            // [{id, file, status, progress}]
+  var selectedIdx = -1;
+  var sending = false;
+  var sessionId = null;
+  var sessionTokens = {};
+  var activeXhr = null;
+  var scanAbort = false;
+
+  $('alias-input').value = settings.alias;
+
+  // ---------- URL / parse ----------
+  function parseAddr(text, defaultPort) {
+    text = String(text || '').trim().replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+    if (!text) return null;
+    var host = text, port = defaultPort || 53317;
+    var m = text.match(/^(.+):(\d{1,5})$/);
+    if (m) { host = m[1]; port = parseInt(m[2], 10); }
+    if (!/^(\d{1,3}\.){3}\d{1,3}$/.test(host) && !/^[a-zA-Z0-9.\-]+$/.test(host)) return null;
+    if (!(port >= 1 && port <= 65535)) return null;
+    return { ip: host, port: port };
+  }
+  function deviceUrl(device, scheme) {
+    return (scheme || device.protocol || 'http') + '://' + device.ip + ':' + device.port;
+  }
+
+  // ---------- transport: direct → relay ----------
+  function directJson(url, method, jsonBody, timeoutMs) {
+    return new Promise(function (resolve, reject) {
+      var ctrl = new AbortController();
+      var timer = setTimeout(function () { ctrl.abort(); }, timeoutMs || 6000);
+      fetch(url, {
+        method: method || 'GET',
+        headers: jsonBody ? { 'Content-Type': 'application/json' } : undefined,
+        body: jsonBody ? JSON.stringify(jsonBody) : undefined,
+        signal: ctrl.signal
+      }).then(function (res) {
+        clearTimeout(timer);
+        return res.text().then(function (text) {
+          resolve({ status: res.status, text: text, json: tryParse(text) });
+        });
+      }).catch(function (err) {
+        clearTimeout(timer);
+        reject(err);
+      });
+    });
+  }
+
+  function relayJson(url, method, jsonBody, timeoutMs) {
+    return new Promise(function (resolve, reject) {
+      var ctrl = new AbortController();
+      var timer = setTimeout(function () { ctrl.abort(); }, timeoutMs || 6000);
+      fetch(RELAY, {
+        method: 'POST',
+        headers: {
+          'X-Lan-Target': url,
+          'X-Lan-Method': method || 'GET',
+          'Content-Type': jsonBody ? 'application/json' : 'text/plain'
+        },
+        body: jsonBody ? JSON.stringify(jsonBody) : undefined,
+        signal: ctrl.signal
+      }).then(function (res) {
+        clearTimeout(timer);
+        return res.text().then(function (text) {
+          var targetStatus = parseInt(res.headers.get('X-Lan-Status') || res.status, 10);
+          if (!res.ok && res.status === 502) {
+            reject(new Error('relay_unreachable'));
+            return;
+          }
+          resolve({ status: targetStatus, text: text, json: tryParse(text) });
+        });
+      }).catch(function (err) {
+        clearTimeout(timer);
+        reject(err);
+      });
+    });
+  }
+
+  function tryParse(text) {
+    try { return JSON.parse(text); } catch (e) { return null; }
+  }
+
+  // Probe both schemes and both transports; returns info or null.
+  function probeDevice(device) {
+    var schemes = ['http', 'https'];
+    var chain = Promise.resolve(null);
+    schemes.forEach(function (scheme) {
+      chain = chain.then(function (found) {
+        if (found) return found;
+        var url = deviceUrl(device, scheme) + API + '/info';
+        return directJson(url, 'GET', null, 4000).then(function (r) {
+          if (r.status === 200 && r.json && r.json.fingerprint) {
+            device.protocol = scheme; device.transport = 'direct';
+            return r.json;
+          }
+          return null;
+        }).catch(function () { return null; });
+      }).then(function (found) {
+        if (found) return found;
+        var url = deviceUrl(device, scheme) + API + '/info';
+        return relayJson(url, 'GET', null, 4000).then(function (r) {
+          if (r.status === 200 && r.json && r.json.fingerprint) {
+            device.protocol = scheme; device.transport = 'relay';
+            return r.json;
+          }
+          return null;
+        }).catch(function () { return null; });
+      });
+    });
+    return chain;
+  }
+
+  // Protocol POST (json) via the device's known-good transport
+  function lsPost(device, path, jsonBody, query) {
+    var url = deviceUrl(device) + API + path + (query || '');
+    var call = device.transport === 'direct' ? directJson : relayJson;
+    return call(url, 'POST', jsonBody, 15000);
+  }
+
+  // Binary upload with progress via XHR
+  function lsUpload(device, path, file, onprogress) {
+    return new Promise(function (resolve, reject) {
+      var targetUrl = deviceUrl(device) + API + path;
+      var xhr = new XMLHttpRequest();
+      activeXhr = xhr;
+      if (device.transport === 'direct') {
+        xhr.open('POST', targetUrl);
+      } else {
+        xhr.open('POST', RELAY);
+        xhr.setRequestHeader('X-Lan-Target', targetUrl);
+      }
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.upload.onprogress = function (e) {
+        if (e.lengthComputable) onprogress(e.loaded / e.total);
+      };
+      xhr.onload = function () {
+        activeXhr = null;
+        if (xhr.status >= 200 && xhr.status < 300) resolve();
+        else reject(new Error('HTTP ' + xhr.status));
+      };
+      xhr.onerror = function () { activeXhr = null; reject(new Error('网络错误')); };
+      xhr.onabort = function () { activeXhr = null; reject(new Error('已取消')); };
+      xhr.send(file);
+    });
+  }
+
+  // GET binary via relay (receive flow) → blob
+  function relayBlob(url) {
+    return fetch(RELAY, {
+      method: 'POST',
+      headers: { 'X-Lan-Target': url, 'X-Lan-Method': 'GET' }
+    }).then(function (res) {
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return res.blob();
+    });
+  }
+
+  function myInfo() {
+    var ua = navigator.userAgent;
+    var model = 'Browser';
+    if (/Edg\//.test(ua)) model = 'Edge';
+    else if (/Chrome\//.test(ua)) model = 'Chrome';
+    else if (/Firefox\//.test(ua)) model = 'Firefox';
+    else if (/Safari\//.test(ua)) model = 'Safari';
+    return {
+      alias: ($('alias-input').value || settings.alias).trim() || '网页传输',
+      version: '2.1',
+      deviceModel: model,
+      deviceType: 'web',
+      fingerprint: settings.fingerprint,
+      port: 53317,
+      protocol: 'http',
+      download: false
+    };
+  }
+
+  /* ================= 设备列表 UI ================= */
+  function renderDevices() {
+    var box = $('device-list');
+    box.innerHTML = '';
+    devices.forEach(function (d, i) {
+      var el = document.createElement('div');
+      el.className = 'dev' + (i === selectedIdx ? ' selected' : '');
+      var dtypeIcon = d.model && /iphone|android|mobile/i.test(d.model || '')
+        ? '<rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/>'
+        : '<rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/>';
+      el.innerHTML =
+        '<span class="dico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' + dtypeIcon + '</svg></span>' +
+        '<span class="info">' +
+          '<span class="name"><span class="dot ' + (d.reachable ? 'ok' : '') + '" id="dot-' + i + '"></span>' + esc(d.alias || d.ip) +
+          (d.transport ? ' <span class="badge badge-teal" style="font-size:10px;padding:1px 7px">' + (d.transport === 'direct' ? '直连' : '中继') + '</span>' : '') +
+          '</span>' +
+          '<span class="meta">' + esc(d.ip) + ':' + d.port + (d.model ? ' · ' + esc(d.model) : '') + '</span>' +
+        '</span>' +
+        '<button type="button" class="btn btn-sm del" title="移除设备" aria-label="移除设备"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>';
+      el.addEventListener('click', function (e) {
+        if (e.target.closest('.del')) return;
+        selectedIdx = i;
+        renderDevices();
+        refreshSendButton();
+      });
+      el.querySelector('.del').addEventListener('click', function () {
+        devices.splice(i, 1);
+        if (selectedIdx >= devices.length) selectedIdx = devices.length - 1;
+        save('ls_devices_v1', devices);
+        renderDevices();
+        refreshSendButton();
+      });
+      box.appendChild(el);
+    });
+  }
+
+  function addDevice(addr, info, silent) {
+    var existing = devices.findIndex(function (d) { return d.ip === addr.ip && d.port === addr.port; });
+    var entry = {
+      ip: addr.ip, port: addr.port,
+      alias: info && info.alias, model: info && (info.deviceModel || info.deviceType),
+      fingerprint: info && info.fingerprint,
+      reachable: !!info
+    };
+    if (existing >= 0) devices[existing] = Object.assign(devices[existing], entry);
+    else devices.push(entry);
+    save('ls_devices_v1', devices);
+    renderDevices();
+    if (!silent) toast(info ? ('已添加设备：' + (info.alias || addr.ip)) : '设备已添加（暂未连通）');
+  }
+
+  $('btn-add').addEventListener('click', function () {
+    var addr = parseAddr($('device-input').value);
+    if (!addr) { toast('地址格式不正确'); return; }
+    var btn = $('btn-add');
+    btn.disabled = true;
+    var dev = { ip: addr.ip, port: addr.port, protocol: 'http', transport: null };
+    probeDevice(dev).then(function (info) {
+      btn.disabled = false;
+      if (info) {
+        addDevice(addr, Object.assign(info, { transport: dev.transport }));
+        devices[devices.findIndex(function (d) { return d.ip === addr.ip && d.port === addr.port; })].transport = dev.transport;
+        devices[devices.findIndex(function (d) { return d.ip === addr.ip && d.port === addr.port; })].protocol = dev.protocol;
+        save('ls_devices_v1', devices);
+        renderDevices();
+      } else {
+        addDevice(addr, null);
+        showNetHint('无法连接到 ' + addr.ip + ':' + addr.port + ' —— 请确认：1) 设备在同一局域网；2) LocalSend 已关闭加密（使用 HTTP）；3) 若本站为 https 访问，浏览器会拦截局域网请求，详见下方排障指南。');
+      }
+    });
+  });
+
+  /* ================= 局域网扫描 ================= */
+  $('btn-scan').addEventListener('click', function () {
+    var prefix = $('scan-prefix').value.trim();
+    var port = parseInt($('scan-port').value, 10) || 53317;
+    if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.$/.test(prefix)) { toast('网段格式如 192.168.1.'); return; }
+    var btn = $('btn-scan');
+    if (btn.dataset.scanning === '1') { scanAbort = true; return; }
+    btn.dataset.scanning = '1';
+    btn.querySelector('span').textContent = '停止扫描';
+    $('scan-bar').classList.remove('hidden');
+    scanAbort = false;
+
+    var ips = [];
+    for (var i = 1; i < 255; i++) ips.push(prefix + i);
+    var done = 0, found = 0, idx = 0;
+    var CONC = 16;
+
+    function worker() {
+      if (scanAbort || idx >= ips.length) return Promise.resolve(false);
+      var ip = ips[idx++];
+      var dev = { ip: ip, port: port, protocol: 'http' };
+      var url = deviceUrl(dev) + API + '/info';
+      // 扫描只走中继（直连受 CORS 限制无法读响应）
+      return relayJson(url, 'GET', null, 1600).then(function (r) {
+        if (r.status === 200 && r.json && r.json.fingerprint) {
+          found++;
+          addDevice({ ip: ip, port: port }, Object.assign(r.json, { transport: 'relay' }), true);
+        }
+      }).catch(function () {}).then(function () {
+        done++;
+        $('scan-fill').style.width = Math.round(done / ips.length * 100) + '%';
+        return worker();
+      });
+    }
+
+    var workers = [];
+    for (var w = 0; w < CONC; w++) workers.push(worker());
+    Promise.all(workers).then(function () {
+      btn.dataset.scanning = '';
+      btn.querySelector('span').textContent = '扫描局域网';
+      toast(scanAbort ? '扫描已停止，发现 ' + found + ' 台设备' : '扫描完成，发现 ' + found + ' 台设备');
+      if (found === 0) {
+        showNetHint('未发现设备。扫描经本站中继进行：云端部署时中继无法触达内网；请内网自托管本站，或手动输入设备地址。');
+      }
+    });
+  });
+
+  /* ================= 发送文件选择 ================= */
+  var drop = $('ls-drop');
+  var fileInput = $('ls-file-input');
+  drop.addEventListener('click', function () { fileInput.click(); });
+  drop.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); } });
+  fileInput.addEventListener('change', function () {
+    addFiles(fileInput.files);
+    fileInput.value = '';
+  });
+  ['dragenter', 'dragover'].forEach(function (t) {
+    drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('dragover'); });
+  });
+  ['dragleave', 'drop'].forEach(function (t) {
+    drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.remove('dragover'); });
+  });
+  drop.addEventListener('drop', function (e) {
+    if (e.dataTransfer && e.dataTransfer.files.length) addFiles(e.dataTransfer.files);
+  });
+
+  function addFiles(fileList) {
+    Array.prototype.forEach.call(fileList, function (f) {
+      sendFiles.push({ id: uuid(), file: f, status: 'pending', progress: 0 });
+    });
+    renderSendFiles();
+    refreshSendButton();
+  }
+
+  function renderSendFiles() {
+    var box = $('send-file-list');
+    box.innerHTML = '';
+    sendFiles.forEach(function (it, i) {
+      var row = document.createElement('div');
+      row.className = 'xfile';
+      var statText = { pending: '待发送', sending: '发送中', done: '已完成', error: '失败', skipped: '被拒' }[it.status] || '';
+      var statCls = { pending: '', sending: 'ing', done: 'ok', error: 'err', skipped: 'skip' }[it.status] || '';
+      row.innerHTML =
+        '<span class="fname" title="' + esc(it.file.name) + '">' + esc(it.file.name) + '</span>' +
+        '<span class="fsize">' + fmtSize(it.file.size) + '</span>' +
+        '<span class="fstat ' + statCls + '">' + statText + (it.status === 'sending' ? ' ' + Math.round(it.progress * 100) + '%' : '') + '</span>' +
+        (it.status === 'pending' ? '<button type="button" class="btn btn-sm xrm" title="移除"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>' : '') +
+        '<span class="xrow2"><span class="pbar"><i style="width:' + Math.round(it.progress * 100) + '%"></i></span></span>';
+      var rm = row.querySelector('.xrm');
+      if (rm) rm.addEventListener('click', function () {
+        sendFiles.splice(i, 1);
+        renderSendFiles();
+        refreshSendButton();
+      });
+      box.appendChild(row);
+    });
+  }
+
+  function refreshSendButton() {
+    $('btn-send').disabled = sending || selectedIdx < 0 || !sendFiles.some(function (f) { return f.status === 'pending'; });
+  }
+
+  function setSendStatus(text, cls) {
+    $('send-status-text').textContent = text;
+    $('send-status').querySelector('.dot').className = 'dot ' + (cls || '');
+  }
+
+  /* ================= 发送流程 ================= */
+  $('btn-send').addEventListener('click', function () { startSend(null); });
+  $('btn-pin-retry').addEventListener('click', function () {
+    var pin = $('pin-input').value.trim();
+    if (!pin) { toast('请输入 PIN'); return; }
+    $('pin-row').classList.remove('show');
+    startSend(pin);
+  });
+  $('btn-cancel').addEventListener('click', function () {
+    if (activeXhr) activeXhr.abort();
+    if (sessionId && selectedIdx >= 0) {
+      lsPost(devices[selectedIdx], '/cancel?sessionId=' + encodeURIComponent(sessionId), null).catch(function () {});
+    }
+    sending = false;
+    $('btn-cancel').classList.add('hidden');
+    setSendStatus('已取消', 'err');
+    refreshSendButton();
+  });
+
+  function startSend(pin) {
+    var device = devices[selectedIdx];
+    if (!device || sending) return;
+    var queue = sendFiles.filter(function (f) { return f.status === 'pending'; });
+    if (!queue.length) return;
+
+    sending = true;
+    $('btn-cancel').classList.remove('hidden');
+    refreshSendButton();
+
+    var finish = function (msg, cls) {
+      sending = false;
+      $('btn-cancel').classList.add('hidden');
+      setSendStatus(msg, cls);
+      refreshSendButton();
+    };
+
+    var step = function (text) { setSendStatus(text, 'wait'); };
+
+    (device.transport ? Promise.resolve(device) : probeDevice(device).then(function (info) {
+      if (!info) throw { friendly: '无法连接到设备，请检查地址或查看排障指南' };
+      device.alias = info.alias; device.model = info.deviceModel || info.deviceType;
+      save('ls_devices_v1', devices); renderDevices();
+      return device;
+    }))
+    .then(function () {
+      step('正在注册设备…');
+      return lsPost(device, '/register', myInfo()).catch(function () { return null; });
+    })
+    .then(function () {
+      step('等待对方确认…');
+      var filesMeta = {};
+      queue.forEach(function (it) {
+        filesMeta[it.id] = {
+          id: it.id,
+          fileName: it.file.name,
+          size: it.file.size,
+          fileType: it.file.type || 'application/octet-stream',
+          sha256: null,
+          preview: null,
+          metadata: { modified: new Date(it.file.lastModified || Date.now()).toISOString() }
+        };
+      });
+      var q = pin ? '?pin=' + encodeURIComponent(pin) : '';
+      return lsPost(device, '/prepare-upload' + q, { info: myInfo(), files: filesMeta }).then(function (r) {
+        if (r.status === 401) {
+          $('pin-row').classList.add('show');
+          throw { silent: true, friendly: null };
+        }
+        if (r.status === 403) throw { friendly: '对方拒绝了本次传输' };
+        if (r.status === 409) throw { friendly: '对方正忙于其他传输，请稍后再试' };
+        if (r.status === 204) throw { friendly: '对方拒绝了全部文件' };
+        if (r.status !== 200 || !r.json || !r.json.sessionId) {
+          throw { friendly: '对方响应异常（HTTP ' + r.status + '）' };
+        }
+        return r.json;
+      });
+    })
+    .then(function (prep) {
+      sessionId = prep.sessionId;
+      sessionTokens = prep.files || {};
+      var chain = Promise.resolve();
+      var doneCount = 0, failCount = 0, skipCount = 0;
+      queue.forEach(function (it) {
+        chain = chain.then(function () {
+          var token = sessionTokens[it.id];
+          if (!token) {
+            it.status = 'skipped'; skipCount++;
+            renderSendFiles();
+            return;
+          }
+          it.status = 'sending'; it.progress = 0;
+          renderSendFiles();
+          step('发送中：' + it.file.name);
+          var path = '/upload?sessionId=' + encodeURIComponent(sessionId) +
+            '&fileId=' + encodeURIComponent(it.id) +
+            '&token=' + encodeURIComponent(token);
+          return lsUpload(device, path, it.file, function (p) {
+            it.progress = p;
+            renderSendFiles();
+          }).then(function () {
+            it.status = 'done'; it.progress = 1; doneCount++;
+            renderSendFiles();
+          }).catch(function (err) {
+            it.status = 'error'; failCount++;
+            renderSendFiles();
+            if (String(err.message).indexOf('已取消') >= 0) throw { friendly: '已取消', silentFinish: true };
+          });
+        });
+      });
+      return chain.then(function () {
+        sessionId = null;
+        if (failCount === 0 && doneCount > 0) {
+          finish('全部发送完成（' + doneCount + ' 个文件' + (skipCount ? '，' + skipCount + ' 个被拒' : '') + '）', 'ok');
+          toast('发送完成');
+        } else if (doneCount > 0) {
+          finish('完成 ' + doneCount + ' 个，失败 ' + failCount + ' 个', 'err');
+        } else if (failCount > 0) {
+          finish('发送失败，请重试或查看排障指南', 'err');
+        } else {
+          finish('没有文件被接受', 'err');
+        }
+      });
+    })
+    .catch(function (err) {
+      sessionId = null;
+      if (err && err.silent) { sending = false; $('btn-cancel').classList.add('hidden'); refreshSendButton(); setSendStatus('需要 PIN 码', 'wait'); return; }
+      if (err && err.silentFinish) { sending = false; $('btn-cancel').classList.add('hidden'); refreshSendButton(); setSendStatus(err.friendly, 'err'); return; }
+      finish((err && err.friendly) || '连接失败，请查看排障指南', 'err');
+    });
+  }
+
+  /* ================= 接收流程 ================= */
+  $('btn-recv').addEventListener('click', function () {
+    var addr = parseAddr($('recv-input').value);
+    if (!addr) { toast('地址格式不正确'); return; }
+    var dev = { ip: addr.ip, port: addr.port, protocol: 'http', transport: null };
+    var st = $('recv-status'), stText = $('recv-status-text');
+    st.classList.remove('hidden');
+    st.querySelector('.dot').className = 'dot wait';
+    stText.textContent = '正在连接设备…';
+    $('recv-list').innerHTML = '';
+    $('recv-open-row').classList.add('hidden');
+
+    probeDevice(dev).then(function (info) {
+      if (!info) {
+        st.querySelector('.dot').className = 'dot err';
+        stText.textContent = '无法连接设备（确认设备已开启「通过链接分享」并关闭加密）';
+        $('recv-open-row').classList.remove('hidden');
+        $('btn-recv-open').onclick = function () { window.open('http://' + addr.ip + ':' + addr.port + '/', '_blank'); };
+        return null;
+      }
+      stText.textContent = '已连接 ' + (info.alias || addr.ip) + '，正在获取文件列表…';
+      return lsPost(dev, '/prepare-download', null).then(function (r) {
+        if (r.status === 401) {
+          var pin = prompt('对方需要 PIN 码，请输入：');
+          if (!pin) throw { friendly: '已取消' };
+          return lsPost(dev, '/prepare-download?pin=' + encodeURIComponent(pin), null);
+        }
+        return r;
+      }).then(function (r) {
+        if (r.status === 403 || r.status === 409 || !r.json || !r.json.files) {
+          st.querySelector('.dot').className = 'dot err';
+          stText.textContent = '对方未处于「通过链接分享」状态（HTTP ' + r.status + '）';
+          $('recv-open-row').classList.remove('hidden');
+          $('btn-recv-open').onclick = function () { window.open(deviceUrl(dev) + '/', '_blank'); };
+          return;
+        }
+        var data = r.json;
+        st.querySelector('.dot').className = 'dot ok';
+        var ids = Object.keys(data.files);
+        stText.textContent = '来自 ' + (data.info && data.info.alias ? data.info.alias : addr.ip) + ' 的 ' + ids.length + ' 个文件：';
+        var box = $('recv-list');
+        box.innerHTML = '';
+        ids.forEach(function (fid) {
+          var f = data.files[fid];
+          var row = document.createElement('div');
+          row.className = 'xfile';
+          row.innerHTML =
+            '<span class="fname" title="' + esc(f.fileName) + '">' + esc(f.fileName) + '</span>' +
+            '<span class="fsize">' + fmtSize(f.size || 0) + '</span>' +
+            '<button type="button" class="btn btn-sm btn-secondary dl"><span>下载</span></button>' +
+            '<button type="button" class="btn btn-sm dl-direct" title="新标签页直接下载"><svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg></button>';
+          var dlUrl = deviceUrl(dev) + API + '/download?sessionId=' + encodeURIComponent(data.sessionId) + '&fileId=' + encodeURIComponent(fid);
+          row.querySelector('.dl').addEventListener('click', function (e) {
+            var b = e.currentTarget;
+            b.disabled = true;
+            b.querySelector('span').textContent = '下载中…';
+            relayBlob(dlUrl).then(function (blob) {
+              var a = document.createElement('a');
+              a.href = URL.createObjectURL(blob);
+              a.download = f.fileName || 'download';
+              document.body.appendChild(a);
+              a.click();
+              setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 800);
+              b.querySelector('span').textContent = '已下载';
+            }).catch(function () {
+              b.disabled = false;
+              b.querySelector('span').textContent = '重试';
+              toast('经中继下载失败，可尝试右侧「直接下载」');
+            });
+          });
+          row.querySelector('.dl-direct').addEventListener('click', function () {
+            window.open(dlUrl, '_blank');
+          });
+          box.appendChild(row);
+        });
+      });
+    }).catch(function (err) {
+      st.classList.remove('hidden');
+      st.querySelector('.dot').className = 'dot err';
+      stText.textContent = (err && err.friendly) || '获取失败，请查看排障指南';
+    });
+  });
+
+  /* ================= 网络环境提示 ================= */
+  function showNetHint(text, kind) {
+    var box = $('net-notice');
+    box.innerHTML = '';
+    var el = document.createElement('div');
+    el.className = 'notice notice-' + (kind || 'warning');
+    el.innerHTML = '<b>提示</b><span>' + esc(text) + '</span>';
+    box.appendChild(el);
+  }
+  if (location.protocol === 'https:' && !/^(localhost|127\.)/.test(location.hostname)) {
+    showNetHint('当前通过 HTTPS 访问本站：浏览器会拦截页面发往局域网 HTTP 设备的请求，发送功能可能受限。建议在内网通过 HTTP 访问本站（如 http://内网IP:8080），浏览器间互传可直接使用「快传」。', 'info');
+  }
+
+  /* ================= tabs ================= */
+  function switchTab(send) {
+    $('tab-send').classList.toggle('active', send);
+    $('tab-recv').classList.toggle('active', !send);
+    $('tab-send').setAttribute('aria-selected', send ? 'true' : 'false');
+    $('tab-recv').setAttribute('aria-selected', send ? 'false' : 'true');
+    $('panel-send').classList.toggle('active', send);
+    $('panel-recv').classList.toggle('active', !send);
+  }
+  $('tab-send').addEventListener('click', function () { switchTab(true); });
+  $('tab-recv').addEventListener('click', function () { switchTab(false); });
+
+  // ---- site config: brand name ----
+  fetch('/api/config').then(function (r) { return r.ok ? r.json() : null; }).then(function (config) {
+    if (!config) return;
+    if (config.siteName) {
+      var mini = $('brand-mini-name');
+      if (mini) mini.textContent = config.siteName;
+      document.title = '局域网传输 | ' + config.siteName;
+    }
+  }).catch(function () {});
+
+  renderDevices();
+  renderSendFiles();
+  refreshSendButton();
+})();
+</script>
+</body>
+</html>
