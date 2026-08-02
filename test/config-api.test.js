@@ -21,6 +21,8 @@ describe('/api/config endpoint', function () {
       netdiskEnabled: false,
       webdavEnabled: false,
       webdavUrl: null,
+      webdavAuthRequired: false,
+      webdavUser: null,
       storage: {
         available: [],
         default: 'telegram'
@@ -59,6 +61,8 @@ describe('/api/config endpoint', function () {
       netdiskEnabled: false,
       webdavEnabled: false,
       webdavUrl: null,
+      webdavAuthRequired: false,
+      webdavUser: null,
       storage: {
         available: [],
         default: 'telegram'

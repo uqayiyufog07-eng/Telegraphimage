@@ -19,6 +19,12 @@ export async function onRequestGet(context) {
         netdiskEnabled: !!env.img_r2,
         webdavEnabled: !!env.img_r2,
         webdavUrl: env.img_r2 ? '/webdav' : null,
+        // WebDAV auth status (expose only non-sensitive info)
+        webdavAuthRequired: !!env.img_r2 && (
+            (!isEmptyBinding(env.WEBDAV_USER) && !isEmptyBinding(env.WEBDAV_PASS)) ||
+            (!isEmptyBinding(env.BASIC_USER) && !isEmptyBinding(env.BASIC_PASS))
+        ),
+        webdavUser: !isEmptyBinding(env.WEBDAV_USER) ? env.WEBDAV_USER : (!isEmptyBinding(env.BASIC_USER) ? env.BASIC_USER : null),
         // Storage targets the frontend may offer for uploads. The default comes
         // from STORAGE_PROVIDER; availability is derived from configured bindings.
         storage: {

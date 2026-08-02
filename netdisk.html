@@ -181,6 +181,50 @@
   /* Toast（复用 theme.css） */
   .toast-zone { z-index: 100; }
 
+  /* WebDAV 面板 */
+  .webdav-panel { max-width: 620px; }
+  .webdav-info-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; margin-bottom: 10px;
+    background: var(--c-paper-warm); border: var(--bd-thin); border-radius: var(--radius-sm);
+  }
+  .webdav-info-row .label {
+    font-family: var(--font-head); font-weight: 700; font-size: 13px;
+    min-width: 80px; flex: none;
+  }
+  .webdav-info-row .value {
+    font-family: var(--font-mono); font-size: 13px; flex: 1; word-break: break-all;
+  }
+  .webdav-info-row .copy-btn { flex: none; }
+  .webdav-badge {
+    display: inline-block; padding: 2px 10px; border-radius: 99px;
+    font-size: 12px; font-weight: 700; font-family: var(--font-head);
+  }
+  .webdav-badge.on { background: var(--c-teal); color: var(--c-white); }
+  .webdav-badge.off { background: var(--c-paper); color: var(--c-ink-soft); }
+  .webdav-section-title {
+    font-family: var(--font-head); font-weight: 700; font-size: 14px;
+    margin: var(--sp-2) 0 8px; padding-bottom: 6px; border-bottom: var(--bd-thin);
+  }
+  .webdav-guide {
+    font-size: 13px; line-height: 1.7; color: var(--c-ink-soft);
+  }
+  .webdav-guide code {
+    font-family: var(--font-mono); font-size: 12px;
+    background: var(--c-paper-warm); padding: 2px 6px; border-radius: 4px;
+    border: var(--bd-thin);
+  }
+  .webdav-guide .step { margin-bottom: 8px; padding-left: 4px; }
+  .webdav-guide .step b { color: var(--c-ink); }
+  .webdav-methods {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px;
+  }
+  .webdav-method-tag {
+    padding: 3px 10px; border: var(--bd-thin); border-radius: var(--radius-sm);
+    font-family: var(--font-mono); font-size: 11px; font-weight: 600;
+    background: var(--c-white); color: var(--c-ink-soft);
+  }
+
   /* 响应式 */
   @media (max-width: 700px) {
     .nd-table .col-time { display: none; }
@@ -244,6 +288,12 @@
           <option value="r2">R2</option>
         </select>
       </div>
+      <button class="btn btn-ghost btn-sm" id="btn-webdav">
+        <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+        </svg>
+        WebDAV
+      </button>
       <button class="btn btn-ghost btn-sm" id="btn-refresh">
         <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
@@ -338,6 +388,67 @@
       <span class="close" data-close>&times;</span>
     </div>
     <div class="preview-body" id="preview-body"></div>
+  </div>
+</div>
+
+<!-- WebDAV 控制面板 -->
+<div class="modal-overlay" id="modal-webdav">
+  <div class="modal webdav-panel">
+    <div class="modal-head">
+      <h3>WebDAV 控制面板</h3>
+      <span class="close" data-close>&times;</span>
+    </div>
+    <div class="modal-body">
+      <!-- 连接信息 -->
+      <div class="webdav-section-title">连接信息</div>
+      <div class="webdav-info-row">
+        <span class="label">挂载地址</span>
+        <span class="value" id="webdav-url">-</span>
+        <button class="btn btn-secondary btn-sm copy-btn" id="webdav-copy-url">复制</button>
+      </div>
+      <div class="webdav-info-row">
+        <span class="label">鉴权状态</span>
+        <span class="value"><span class="webdav-badge off" id="webdav-auth-badge">未知</span></span>
+      </div>
+      <div class="webdav-info-row" id="webdav-user-row" style="display:none">
+        <span class="label">用户名</span>
+        <span class="value" id="webdav-username">-</span>
+        <button class="btn btn-secondary btn-sm copy-btn" id="webdav-copy-user">复制</button>
+      </div>
+
+      <!-- 客户端配置指引 -->
+      <div class="webdav-section-title">客户端连接指南</div>
+      <div class="webdav-guide" id="webdav-guide">
+        <div class="step"><b>Windows：</b>打开文件资源管理器 → 右键"此电脑" → 映射网络驱动器 → 输入挂载地址 → 勾选"使用其他凭据" → 输入用户名和密码</div>
+        <div class="step"><b>macOS：</b>Finder → 前往 → 连接服务器（<code>Cmd+K</code>）→ 输入挂载地址 → 输入用户名和密码</div>
+        <div class="step"><b>iOS：</b>使用"文件"App → 浏览 → 连接服务器 → 输入挂载地址和凭据</div>
+        <div class="step"><b>Android：</b>使用支持 WebDAV 的文件管理器（如 Solid Explorer、ES文件浏览器）→ 添加 WebDAV 连接</div>
+        <div class="step"><b>跨平台：</b>使用 <code>RaiDrive</code>、<code>Cyberduck</code> 或 <code>WinSCP</code> 等工具连接</div>
+      </div>
+
+      <!-- 支持的操作 -->
+      <div class="webdav-section-title">支持的 WebDAV 方法</div>
+      <div class="webdav-methods">
+        <span class="webdav-method-tag">OPTIONS</span>
+        <span class="webdav-method-tag">PROPFIND</span>
+        <span class="webdav-method-tag">GET</span>
+        <span class="webdav-method-tag">HEAD</span>
+        <span class="webdav-method-tag">PUT</span>
+        <span class="webdav-method-tag">DELETE</span>
+        <span class="webdav-method-tag">MKCOL</span>
+        <span class="webdav-method-tag">MOVE</span>
+        <span class="webdav-method-tag">COPY</span>
+        <span class="webdav-method-tag">PROPPATCH</span>
+      </div>
+
+      <!-- 提示 -->
+      <div style="margin-top:var(--sp-2); padding:10px 12px; background:var(--c-yellow); border-radius:var(--radius-sm); font-size:12px; line-height:1.6;">
+        提示：WebDAV 密码即你在 Cloudflare Pages 环境变量中配置的 <code style="font-family:var(--font-mono)">WEBDAV_PASS</code>（未设置时使用 <code style="font-family:var(--font-mono)">BASIC_PASS</code>）。密码不会在面板中显示。
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" data-close>关闭</button>
+    </div>
   </div>
 </div>
 
@@ -1088,6 +1199,75 @@ $('#file-input').onchange = (e) => { handleFiles(e.target.files); e.target.value
 $('#btn-mkdir').onclick = showMkdirModal;
 $('#btn-refresh').onclick = loadList;
 $('#btn-batch-delete').onclick = batchDelete;
+$('#btn-webdav').onclick = openWebDAVPanel;
+
+// WebDAV 面板
+let webdavConfig = null;
+
+function openWebDAVPanel() {
+  if (!webdavConfig) {
+    // 配置尚未加载，先拉取
+    fetch('/api/config').then(r => r.json()).then(cfg => {
+      webdavConfig = cfg;
+      renderWebDAVPanel(cfg);
+      showModal('#modal-webdav');
+    }).catch(() => toast('配置加载失败', 'error'));
+    return;
+  }
+  showModal('#modal-webdav');
+}
+
+function renderWebDAVPanel(cfg) {
+  // 挂载地址
+  var webdavUrl = cfg.webdavUrl ? (location.origin + cfg.webdavUrl) : '未启用（需绑定 R2 存储）';
+  $('#webdav-url').textContent = webdavUrl;
+
+  // 鉴权状态
+  var badge = $('#webdav-auth-badge');
+  if (cfg.webdavAuthRequired) {
+    badge.textContent = '需要登录';
+    badge.className = 'webdav-badge on';
+  } else {
+    badge.textContent = '免密访问';
+    badge.className = 'webdav-badge off';
+  }
+
+  // 用户名
+  if (cfg.webdavUser) {
+    $('#webdav-username').textContent = cfg.webdavUser;
+    $('#webdav-user-row').style.display = '';
+  } else {
+    $('#webdav-user-row').style.display = 'none';
+  }
+}
+
+function copyWebDAVText(text, btn) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text).then(function () {
+      toast('已复制');
+    }).catch(function () { fallbackCopy(text); });
+  } else {
+    fallbackCopy(text);
+  }
+}
+
+function fallbackCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  try { document.execCommand('copy'); toast('已复制'); } catch (e) { toast('复制失败', 'error'); }
+  document.body.removeChild(ta);
+}
+
+$('#webdav-copy-url').onclick = function () {
+  copyWebDAVText($('#webdav-url').textContent, this);
+};
+$('#webdav-copy-user').onclick = function () {
+  copyWebDAVText($('#webdav-username').textContent, this);
+};
 $('#rename-confirm').onclick = confirmRename;
 $('#share-create').onclick = createShare;
 $('#share-copy').onclick = () => {
@@ -1143,6 +1323,7 @@ loadList();
 
 // 加载站点配置
 fetch('/api/config').then(r => r.json()).then(cfg => {
+  webdavConfig = cfg;
   if (cfg.siteName) {
     var displayName = cfg.siteName || '网盘';
     $('#site-name').textContent = cfg.siteName ? cfg.siteName + ' · 网盘' : '网盘';
