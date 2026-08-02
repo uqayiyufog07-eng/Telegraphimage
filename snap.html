@@ -10,79 +10,187 @@
 <style>
 .page { min-height: 100vh; display: flex; flex-direction: column; }
 .topbar .brand-mini { display: inline-flex; align-items: center; gap: 10px; margin-right: auto; font-family: var(--font-head); font-weight: 700; font-size: 17px; }
-.topbar .brand-mini .logo-badge { width: 36px; height: 36px; flex: none; display: inline-flex; align-items: center; justify-content: center; background: var(--c-yellow); border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+.topbar .brand-mini .logo-badge { width: 36px; height: 36px; flex: none; display: inline-flex; align-items: center; justify-content: center; background: var(--c-coral); border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
 .topbar .brand-mini .logo-badge .icon { width: 20px; height: 20px; }
 .topbar nav { display: flex; align-items: center; gap: 10px; }
 
-.snap-main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: var(--sp-4) var(--sp-3); }
-.snap-card { width: 100%; max-width: 640px; background: var(--c-paper); border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow); padding: var(--sp-5); }
+.snap-main { flex: 1; display: flex; flex-direction: column; align-items: center; padding: var(--sp-3) var(--sp-3) var(--sp-4); }
+.snap-wrap { width: 100%; max-width: 680px; display: flex; flex-direction: column; gap: var(--sp-3); }
 
-.snap-hero { text-align: center; margin-bottom: var(--sp-4); }
-.snap-hero h1 { font-size: 28px; font-weight: 700; }
-.snap-hero h1 .hl { background: var(--c-yellow); padding: 0 .12em; border: var(--bd); border-radius: var(--radius); }
-.snap-hero .sub { margin-top: var(--sp-2); font-size: 15px; color: var(--c-ink-soft); }
+.snap-hero { text-align: center; }
+.snap-hero h1 { font-size: clamp(26px, 4.5vw, 36px); font-weight: 700; }
+.snap-hero h1 .hl { background: var(--c-coral); padding: 0 .14em; border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow); }
+.snap-hero .sub { margin-top: var(--sp-1); font-size: 15px; color: var(--c-ink-soft); }
+.snap-hero .sub b { color: var(--c-ink); }
 
-/* 状态指示器 */
-.status-bar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 10px 16px; border: var(--bd-thin); border-radius: var(--radius-sm); margin-bottom: var(--sp-3); font-weight: 600; font-size: 14px; }
-.status-bar .dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
-.status-bar .dot.idle { background: var(--c-ink-soft, #999); }
-.status-bar .dot.waiting { background: #f59e0b; animation: pulse 1.5s infinite; }
-.status-bar .dot.connecting { background: #3b82f6; animation: pulse 1s infinite; }
+/* ---- 步骤指示器 ---- */
+.steps { display: flex; align-items: flex-start; list-style: none; margin: 0; padding: 0; }
+.steps li { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 7px; position: relative; text-align: center; }
+.steps li::before {
+  content: attr(data-n);
+  width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-head); font-weight: 700; font-size: 15px;
+  background: var(--c-white); border: var(--bd-thin); border-radius: 50%;
+  box-shadow: var(--shadow-sm); position: relative; z-index: 1;
+  transition: all var(--dur-mid) var(--ease-pop);
+}
+.steps li:not(:last-child)::after {
+  content: ''; position: absolute; top: 17px; left: calc(50% + 22px); right: calc(-50% + 22px);
+  height: 3px; background: var(--c-ink); opacity: .15; border-radius: 2px;
+}
+.steps li .t { font-family: var(--font-head); font-size: 12px; font-weight: 700; color: var(--c-ink-soft); transition: color var(--dur-mid); }
+.steps li.active::before { background: var(--c-coral); border-color: var(--c-ink); transform: scale(1.12); }
+.steps li.active .t { color: var(--c-ink); }
+.steps li.done::before { content: '✓'; background: var(--c-teal); }
+.steps li.done .t { color: var(--c-ink); }
+.steps li.done:not(:last-child)::after { background: var(--c-teal); opacity: 1; }
+
+/* ---- 面板卡片 ---- */
+.snap-card { background: var(--c-white); border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+.snap-card .card-head { padding: 14px var(--sp-2); border-bottom: var(--bd); background: var(--c-paper-warm); display: flex; align-items: center; gap: 10px; }
+.snap-card .card-head h2 { font-size: 16px; display: flex; align-items: center; gap: 8px; }
+.snap-card .card-head .spacer { flex: 1; }
+.snap-card .card-body { padding: var(--sp-2); }
+
+.panel { display: none; }
+.panel.show { display: block; animation: pop-in var(--dur-mid) var(--ease-pop) both; }
+
+/* ---- 状态条 ---- */
+.status-bar { display: flex; align-items: center; gap: 10px; padding: 11px var(--sp-2); border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow-sm); background: var(--c-white); font-weight: 600; font-size: 14px; }
+.status-bar .dot { width: 11px; height: 11px; border-radius: 50%; flex: none; border: 2px solid var(--c-ink); }
+.status-bar .dot.idle { background: #9ca3af; }
+.status-bar .dot.waiting { background: var(--c-yellow); animation: pulse 1.5s infinite; }
+.status-bar .dot.connecting { background: var(--c-blue); animation: pulse 1s infinite; }
 .status-bar .dot.connected { background: #22c55e; }
-.status-bar .dot.error { background: #ef4444; }
-.status-bar .dot.warning { background: #f59e0b; animation: pulse 1.5s infinite; }
-@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+.status-bar .dot.error { background: var(--c-coral); }
+.status-bar .dot.warning { background: var(--c-yellow); animation: pulse 1.5s infinite; }
+.status-bar .quality { margin-left: auto; flex: none; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .35; } }
 
-/* 房间码展示 */
-.room-code-box { text-align: center; padding: var(--sp-3); margin-bottom: var(--sp-3); }
-.room-code-box .label { font-size: 13px; color: var(--c-ink-soft); margin-bottom: 4px; }
-.room-code-box .code { font-size: 36px; font-weight: 800; font-family: var(--font-mono, monospace); letter-spacing: 4px; color: var(--c-ink); background: var(--c-yellow); padding: 8px 24px; border: var(--bd); border-radius: var(--radius); display: inline-block; }
-.share-link-box { display: flex; gap: 8px; margin-top: 12px; }
-.share-link-box input { flex: 1; font-family: var(--font-mono, monospace); font-size: 13px; }
+/* ---- 入口选项卡 ---- */
+.choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-2); }
+.choice {
+  display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: var(--sp-3) var(--sp-2); cursor: pointer; text-align: center;
+  background: var(--c-paper); border: var(--bd); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm); transition: all var(--dur-fast) var(--ease-pop);
+}
+.choice:hover { transform: translate(-2px,-2px); box-shadow: var(--shadow); background: var(--c-white); }
+.choice:active { transform: translate(1px,1px); box-shadow: var(--shadow-none); }
+.choice .ico { width: 54px; height: 54px; display: flex; align-items: center; justify-content: center; border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow-sm); }
+.choice.c-create .ico { background: var(--c-yellow); }
+.choice.c-join .ico { background: var(--c-teal); }
+.choice .ico .icon { width: 26px; height: 26px; }
+.choice b { font-family: var(--font-head); font-size: 16px; }
+.choice small { font-size: 12px; color: var(--c-ink-soft); line-height: 1.5; }
 
-/* 文件传输区 */
-.transfer-zone { border: 2px dashed var(--c-border, #ddd); border-radius: var(--radius); padding: var(--sp-4); text-align: center; transition: border-color .2s, background .2s; }
-.transfer-zone.dragover { border-color: var(--c-yellow); background: rgba(255, 204, 0, .08); }
-.transfer-zone .hint { color: var(--c-ink-soft); font-size: 14px; }
-.transfer-zone .hint b { color: var(--c-ink); }
+.join-form { display: none; margin-top: var(--sp-2); padding-top: var(--sp-2); border-top: var(--bd-thin); }
+.join-form.show { display: block; animation: pop-in var(--dur-mid) var(--ease-pop) both; }
+.join-row { display: flex; gap: 10px; }
+.join-row input {
+  flex: 1; font-family: var(--font-mono); font-size: 20px; text-align: center;
+  letter-spacing: 5px; padding: 10px 12px; text-transform: none;
+}
+.error-msg { color: #b03030; font-size: 13px; font-weight: 700; margin-top: 8px; white-space: pre-line; }
 
-/* 文件列表 */
-.file-list { margin-top: var(--sp-3); }
-.file-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: var(--bd-thin); border-radius: var(--radius-sm); margin-bottom: 8px; background: var(--c-paper-warm); }
-.file-row .fname { flex: 1; font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.file-row .fsize { font-size: 12px; color: var(--c-ink-soft); flex: none; }
-.file-row .fstatus { font-size: 12px; font-weight: 600; flex: none; min-width: 60px; text-align: right; }
-.file-row .fstatus.done { color: #22c55e; }
-.file-row .fstatus.sending { color: #3b82f6; }
-.file-row .fstatus.error { color: #ef4444; }
-.file-row .fstatus.received { color: #8b5cf6; }
-.file-row .progress { width: 100%; height: 4px; background: var(--c-border, #ddd); border-radius: 2px; margin-top: 4px; overflow: hidden; }
-.file-row .progress .bar { height: 100%; background: var(--c-yellow); transition: width .2s; }
+/* ---- 引导三步 ---- */
+.guide { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); }
+.g-item { display: flex; flex-direction: column; gap: 6px; padding: 12px 14px; background: var(--c-paper); border: var(--bd-thin); border-radius: var(--radius); }
+.g-item .n { width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; font-family: var(--font-head); font-weight: 700; font-size: 13px; background: var(--c-coral); border: var(--bd-thin); border-radius: 50%; }
+.g-item b { font-size: 13px; font-family: var(--font-head); }
+.g-item span { font-size: 12px; color: var(--c-ink-soft); line-height: 1.5; }
 
-/* 按钮 */
-.btn-snap { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; font-family: var(--font-head); font-weight: 700; font-size: 15px; border: var(--bd); border-radius: var(--radius); cursor: pointer; transition: all .15s; }
-.btn-snap.primary { background: var(--c-yellow); color: var(--c-ink); }
-.btn-snap.primary:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+/* ---- 房间码 ---- */
+.room-code-box { text-align: center; }
+.room-code-box .label { font-size: 13px; color: var(--c-ink-soft); margin-bottom: 6px; }
+.room-code { display: inline-flex; gap: 6px; margin: 4px 0 var(--sp-2); }
+.room-code .ch {
+  width: 46px; height: 58px; display: flex; align-items: center; justify-content: center;
+  font-family: var(--font-mono); font-size: 30px; font-weight: 700;
+  background: var(--c-yellow); border: var(--bd); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  animation: pop-in var(--dur-mid) var(--ease-pop) both;
+}
+.share-link-box { display: flex; gap: 8px; }
+.share-link-box input { flex: 1; font-family: var(--font-mono); font-size: 12px; min-width: 0; }
+.wait-hint { margin-top: var(--sp-2); font-size: 13px; color: var(--c-ink-soft); display: flex; align-items: center; justify-content: center; gap: 8px; flex-wrap: wrap; }
+.ttl-badge { font-family: var(--font-mono); font-weight: 700; color: var(--c-ink); background: var(--c-paper-warm); border: var(--bd-thin); border-radius: 999px; padding: 2px 12px; font-size: 12px; }
+.ttl-badge.low { background: var(--c-coral); color: var(--c-white); }
+
+/* ---- 传输区 ---- */
+.transfer-zone {
+  border: 3px dashed var(--c-ink); border-radius: var(--radius);
+  padding: var(--sp-4) var(--sp-3); text-align: center; cursor: pointer;
+  background: var(--c-paper); transition: all var(--dur-fast);
+}
+.transfer-zone:hover { background: var(--c-paper-warm); }
+.transfer-zone.dragover { border-color: var(--c-ink); background: var(--c-teal); color: var(--c-white); transform: scale(1.01); }
+.transfer-zone.dragover .hint, .transfer-zone.dragover .hint b { color: var(--c-white); }
+.transfer-zone .hint { color: var(--c-ink-soft); font-size: 14px; margin-top: 10px; }
+.transfer-zone .hint b { color: var(--c-ink); font-size: 16px; }
+
+.file-list { display: flex; flex-direction: column; gap: 8px; }
+.file-list:empty { display: none; }
+.file-row { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: var(--bd-thin); border-radius: var(--radius); background: var(--c-paper); animation: slide-in-left var(--dur-mid) var(--ease-pop) both; }
+.file-row .fico { width: 34px; height: 34px; flex: none; display: flex; align-items: center; justify-content: center; border: var(--bd-thin); border-radius: var(--radius-sm); }
+.file-row .fico.up { background: var(--c-yellow); }
+.file-row .fico.down { background: var(--c-teal); }
+.file-row .fico .icon { width: 17px; height: 17px; }
+.file-row .fmain { flex: 1; min-width: 0; }
+.file-row .fname { font-weight: 700; font-size: 13px; font-family: var(--font-head); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file-row .fmeta { font-size: 11px; color: var(--c-ink-soft); font-family: var(--font-mono); margin-top: 2px; display: flex; gap: 8px; flex-wrap: wrap; }
+.file-row .progress { width: 100%; height: 6px; background: var(--c-white); border: 1px solid rgba(20,20,20,.25); border-radius: 999px; margin-top: 5px; overflow: hidden; }
+.file-row .progress .bar { height: 100%; width: 0; background: repeating-linear-gradient(-45deg, var(--c-teal) 0 8px, #3dbdb4 8px 16px); transition: width .2s; }
+.file-row.out .progress .bar { background: repeating-linear-gradient(-45deg, var(--c-yellow) 0 8px, #f5cf3f 8px 16px); }
+.file-row .fact { flex: none; display: flex; align-items: center; gap: 6px; }
+.file-row .fstatus { font-size: 12px; font-weight: 700; min-width: 52px; text-align: right; }
+.file-row .fstatus.done, .file-row .fstatus.received { color: #16a34a; }
+.file-row .fstatus.sending { color: #2563eb; }
+.file-row .fstatus.error { color: #dc2626; }
+.file-row .xcancel { width: 26px; height: 26px; min-height: 26px; padding: 0; border-width: 2px; }
+.file-row .xcancel .icon { width: 12px; height: 12px; }
+
+/* ---- 错误横幅 ---- */
+.error-banner {
+  display: none; padding: 12px var(--sp-2);
+  background: var(--c-coral); color: var(--c-white);
+  border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+  font-size: 14px; font-weight: 600; white-space: pre-line; line-height: 1.6;
+}
+.error-banner.show { display: block; animation: pop-in var(--dur-mid) var(--ease-pop) both; }
+.error-banner b { font-family: var(--font-head); }
+
+.actions-row { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+
+.btn-snap { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; font-family: var(--font-head); font-weight: 700; font-size: 15px; border: var(--bd); border-radius: var(--radius); cursor: pointer; transition: all .15s; background: var(--c-white); box-shadow: var(--shadow-sm); }
+.btn-snap:hover { transform: translate(-1px,-1px); box-shadow: var(--shadow); }
+.btn-snap.primary { background: var(--c-coral); }
+.btn-snap.secondary { background: var(--c-teal); }
 .btn-snap.ghost { background: var(--c-paper); }
-.btn-snap.ghost:hover { background: var(--c-paper-warm); }
-.btn-snap:disabled { opacity: .5; cursor: not-allowed; }
+.btn-snap:disabled { opacity: .5; cursor: not-allowed; transform: none; }
 
-.actions-row { display: flex; gap: 10px; justify-content: center; margin-top: var(--sp-3); flex-wrap: wrap; }
-.error-msg { color: #ef4444; font-size: 13px; text-align: center; margin-top: 8px; }
 .hidden { display: none !important; }
 
+footer { text-align: center; font-size: 13px; font-weight: 500; color: var(--c-ink-soft); padding: 0 var(--sp-3) var(--sp-3); }
+footer a { font-weight: 700; text-decoration: underline; text-decoration-thickness: 2px; text-underline-offset: 3px; }
+footer a:hover { background: var(--c-yellow); }
+
 @media (max-width: 640px) {
-  .snap-card { padding: var(--sp-3); }
-  .room-code-box .code { font-size: 28px; letter-spacing: 2px; }
   .topbar .brand-mini span { display: none; }
+  .choice-grid { grid-template-columns: 1fr; }
+  .guide { grid-template-columns: 1fr; }
+  .g-item { flex-direction: row; align-items: center; }
+  .room-code .ch { width: 38px; height: 48px; font-size: 24px; }
+  .join-row { flex-direction: column; }
+  .steps li .t { font-size: 11px; }
 }
 </style>
 </head>
 <body class="page">
 <header class="topbar">
   <a class="brand-mini" href="/">
-    <span class="logo-badge" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></span>
-    <span>Telegraph-Image</span>
+    <span class="logo-badge" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg></span>
+    <span id="brand-mini-name">Telegraph-Image</span>
   </a>
   <nav>
     <a class="btn btn-sm" href="/"><svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg><span>首页</span></a>
@@ -93,634 +201,893 @@
 </header>
 
 <div class="snap-main">
-  <div class="snap-card">
+  <div class="snap-wrap">
     <div class="snap-hero">
       <h1>文件<span class="hl">快传</span></h1>
-      <p class="sub">打开链接即可 <b>P2P 直连互传文件</b>，不经过服务器存储</p>
+      <p class="sub">打开链接即可 <b>P2P 直连互传</b> · 不限大小 · 不经过服务器存储</p>
     </div>
 
-    <div id="status-bar" class="status-bar">
-      <span class="dot idle"></span>
-      <span id="status-text">准备中...</span>
+    <!-- 步骤指示器 -->
+    <ol class="steps" id="steps">
+      <li data-n="1" class="active" id="step-1"><span class="t">创建 / 加入房间</span></li>
+      <li data-n="2" id="step-2"><span class="t">建立 P2P 连接</span></li>
+      <li data-n="3" id="step-3"><span class="t">互传文件</span></li>
+    </ol>
+
+    <!-- 状态条 -->
+    <div class="status-bar" role="status" aria-live="polite">
+      <span class="dot idle" id="status-dot"></span>
+      <span id="status-text">准备就绪</span>
+      <span class="quality" id="conn-quality"></span>
     </div>
 
-    <!-- 创建/加入面板 -->
-    <div id="panel-init" class="">
-      <div class="actions-row">
-        <button class="btn-snap primary" id="btn-create" onclick="createRoom()">
-          <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-          创建快传房间
-        </button>
-        <button class="btn-snap ghost" id="btn-join" onclick="showJoinInput()">
-          <svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
-          输入房间码加入
-        </button>
-      </div>
-      <div id="join-input" class="hidden" style="margin-top: 16px;">
-        <div style="display:flex;gap:8px;justify-content:center;">
-          <input type="text" id="join-code" placeholder="输入6位房间码" maxlength="6" style="font-family:var(--font-mono,monospace);font-size:18px;text-align:center;letter-spacing:3px;width:180px;padding:8px 12px;border:var(--bd);border-radius:var(--radius-sm)">
-          <button class="btn-snap primary" onclick="joinRoom()">加入</button>
+    <!-- ========== 面板 1：入口 ========== -->
+    <div id="panel-init" class="panel show">
+      <div class="snap-card">
+        <div class="card-head"><h2>开始传输</h2></div>
+        <div class="card-body">
+          <div class="choice-grid">
+            <button type="button" class="choice c-create" id="btn-create">
+              <span class="ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span>
+              <b>创建房间</b>
+              <small>生成 6 位房间码<br>分享链接给对方</small>
+            </button>
+            <button type="button" class="choice c-join" id="btn-join">
+              <span class="ico"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg></span>
+              <b>加入房间</b>
+              <small>输入对方分享的<br>6 位房间码</small>
+            </button>
+          </div>
+          <div class="join-form" id="join-form">
+            <div class="join-row">
+              <input type="text" id="join-code" class="input" placeholder="输入 6 位房间码" maxlength="6" autocomplete="off" spellcheck="false">
+              <button type="button" class="btn btn-primary" id="btn-join-go">加入</button>
+            </div>
+            <p class="error-msg hidden" id="join-error"></p>
+          </div>
         </div>
-        <p class="error-msg hidden" id="join-error"></p>
       </div>
-    </div>
 
-    <!-- 等待连接面板（创建者） -->
-    <div id="panel-waiting" class="hidden">
-      <div class="room-code-box">
-        <div class="label">房间码</div>
-        <div class="code" id="room-code-display">------</div>
-        <div class="share-link-box">
-          <input type="text" id="share-link" readonly onclick="this.select()">
-          <button class="btn btn-sm" onclick="copyShareLink(event)">复制链接</button>
+      <!-- 引导三步 -->
+      <div class="snap-card">
+        <div class="card-head"><h2>如何使用</h2></div>
+        <div class="card-body">
+          <div class="guide">
+            <div class="g-item"><span class="n">1</span><div><b>一方创建房间</b><br><span>点击「创建房间」，把链接或房间码发给对方</span></div></div>
+            <div class="g-item"><span class="n">2</span><div><b>另一方打开加入</b><br><span>打开链接自动加入，或输入房间码手动加入</span></div></div>
+            <div class="g-item"><span class="n">3</span><div><b>直连互传文件</b><br><span>连接建立后拖入文件，P2P 满速传输</span></div></div>
+          </div>
         </div>
-        <p style="margin-top:10px;font-size:13px;color:var(--c-ink-soft);">将链接发给对方，打开即可互传文件</p>
       </div>
     </div>
 
-    <!-- 传输面板（已连接） -->
-    <div id="panel-transfer" class="hidden">
-      <div class="transfer-zone" id="drop-zone" onclick="document.getElementById('file-input').click()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:48px;height:48px;margin:0 auto;color:var(--c-ink-soft)"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-        <div class="hint" style="margin-top:8px;"><b>点击选择</b> 或 <b>拖拽文件</b> 到此处发送</div>
-        <input type="file" id="file-input" multiple class="hidden" onchange="sendFiles(this.files)">
+    <!-- ========== 面板 2：等待对方 ========== -->
+    <div id="panel-waiting" class="panel">
+      <div class="snap-card">
+        <div class="card-head">
+          <h2>等待对方加入</h2>
+          <span class="spacer"></span>
+          <span class="ttl-badge" id="ttl-badge">有效期 5:00</span>
+        </div>
+        <div class="card-body">
+          <div class="room-code-box">
+            <div class="label">房间码（对方输入即可加入）</div>
+            <div class="room-code" id="room-code-display"></div>
+            <div class="share-link-box">
+              <input type="text" id="share-link" class="input" readonly onclick="this.select()" aria-label="分享链接">
+              <button class="btn btn-primary btn-sm" type="button" id="btn-copy-link">
+                <svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="9" y="9" width="11.5" height="11.5" rx="2.2"/><path d="M5.5 15.5H5a1.5 1.5 0 0 1-1.5-1.5V5A1.5 1.5 0 0 1 5 3.5h9A1.5 1.5 0 0 1 15.5 5v.5"/></svg>
+                <span>复制链接</span>
+              </button>
+            </div>
+            <p class="wait-hint">把链接发给对方，打开即自动加入；对方加入后将自动建立 P2P 连接</p>
+          </div>
+          <div class="actions-row" style="margin-top:var(--sp-2);">
+            <button type="button" class="btn-snap ghost" id="btn-cancel-wait">取消</button>
+          </div>
+        </div>
       </div>
-      <div class="file-list" id="file-list"></div>
     </div>
 
-    <div id="error-display" class="error-msg hidden"></div>
+    <!-- ========== 面板 3：传输 ========== -->
+    <div id="panel-transfer" class="panel">
+      <div class="snap-card">
+        <div class="card-head">
+          <h2>互传文件</h2>
+          <span class="spacer"></span>
+          <span class="badge badge-teal" id="peer-badge">P2P 已连接</span>
+        </div>
+        <div class="card-body" style="display:flex;flex-direction:column;gap:var(--sp-2);">
+          <div class="transfer-zone" id="drop-zone" role="button" tabindex="0" aria-label="选择或拖拽文件发送">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="width:44px;height:44px;margin:0 auto;opacity:.6"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+            <div class="hint"><b>点击选择</b> 或 <b>拖拽文件</b> 到此处发送<br><small>支持多选 · 双方可同时互发</small></div>
+            <input type="file" id="file-input" multiple class="hidden">
+          </div>
+          <div class="file-list" id="file-list"></div>
+          <div class="actions-row">
+            <button type="button" class="btn-snap ghost" id="btn-disconnect">断开并重连</button>
+          </div>
+        </div>
+      </div>
+    </div>
 
-    <div class="actions-row" id="panel-actions" style="margin-top:20px;">
-      <button class="btn-snap ghost" onclick="location.href='/snap'">重置</button>
+    <!-- 错误横幅 -->
+    <div id="error-banner" class="error-banner" role="alert"></div>
+
+    <!-- 失败后的重试 -->
+    <div class="actions-row hidden" id="panel-retry">
+      <button type="button" class="btn-snap primary" id="btn-retry">重新开始</button>
     </div>
   </div>
 </div>
 
-<script>
-'use strict';
-const $ = (s) => document.querySelector(s);
+<footer>
+  <span>P2P 传输不经服务器存储 · </span>
+  <a href="/">返回首页</a>
+</footer>
 
-// WebRTC 配置
-const ICE_SERVERS = [
+<script>
+(function () {
+'use strict';
+
+/* ================================================================
+ * 文件快传 —— WebRTC P2P 直连互传
+ *
+ * 稳定性设计：
+ *  - 发送队列串行化（防止多文件 chunk 交错导致接收端元数据错乱）
+ *  - ICE candidate 批量合并提交 + 串行发送（配合服务端分 key 存储消除竞态）
+ *  - bufferedAmountLow 事件驱动背压（替代忙轮询，防止 buffer 溢出抛异常）
+ *  - 接收端分片合并（16MB 一片，降低小 chunk 数量的 GC 压力）
+ *  - 传输中断检测（通道关闭时未完成文件标记失败）
+ *  - fileId 使用 crypto.randomUUID（杜绝同名文件冲突）
+ *  - DOM 行缓存 Map（避免每 chunk 全表 querySelectorAll）
+ * ================================================================ */
+
+var $ = function (s) { return document.querySelector(s); };
+
+var ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
   { urls: 'stun:stun2.l.google.com:19302' },
   { urls: 'stun:stun3.l.google.com:19302' },
   { urls: 'stun:stun4.l.google.com:19302' },
-  { urls: 'stun:openrelay.metered.ca:80' },
 ];
-const CHUNK_SIZE = 64 * 1024; // 64KB per chunk
-const POLL_INTERVAL = 1000;   // 信令轮询间隔 (ms)
-const CONNECT_TIMEOUT = 20000; // 连接超时 20 秒
+var CHUNK_SIZE = 64 * 1024;          // 64KB per chunk
+var POLL_INTERVAL = 1000;            // 信令轮询间隔
+var CONNECT_TIMEOUT = 20000;         // 连接超时 20s
+var BUFFER_HIGH = 8 * 1024 * 1024;   // 背压上限 8MB（Chrome 溢出阈值 16MB）
+var BUFFER_LOW = 2 * 1024 * 1024;    // 恢复阈值 2MB
+var RECV_MERGE_SIZE = 16 * 1024 * 1024; // 接收端每 16MB 合并一次
+var ROOM_TTL_SEC = 300;
 
-let pc = null;           // RTCPeerConnection
-let dc = null;           // DataChannel
-let role = '';            // 'caller' | 'callee'
-let roomCode = '';
-let pollTimer = null;
-let iceReceivedCount = 0;
-let receivedFiles = [];  // 接收到的文件元数据
-let pendingIce = [];     // roomCode 未就绪时缓存的 ICE candidate
-let connectTimer = null; // 连接超时计时器
+// ---------- 会话状态 ----------
+var pc = null;
+var dc = null;
+var role = '';              // 'caller' | 'callee'
+var roomCode = '';
+var roomCreatedAt = 0;      // 服务端房间创建时间（秒）
+var pollTimer = null;
+var connectTimer = null;
+var ttlTimer = null;
+var iceReceivedCount = 0;
+var pendingIce = [];        // roomCode 就绪前缓存的本地 candidate
+var iceChain = Promise.resolve();  // ICE 发送串行链
+var iceBatch = [];          // 待合并的 candidate
+var iceBatchTimer = null;
+var destroyed = false;
 
+// 发送队列
+var sendQueue = [];
+var sendBusy = false;
+
+// 接收状态
+var recvMeta = null;
+var recvParts = [];
+var recvBuf = [];
+var recvBufSize = 0;
+var recvSize = 0;
+
+// DOM 缓存
+var rowMap = new Map();     // fileId -> { row, bar, status, meta }
+
+/* ================= UI 基础 ================= */
+function setStep(n) {
+  for (var i = 1; i <= 3; i++) {
+    var el = $('#step-' + i);
+    el.classList.toggle('done', i < n);
+    el.classList.toggle('active', i === n);
+  }
+}
 function setStatus(state, text) {
-  const bar = $('#status-bar');
-  bar.querySelector('.dot').className = 'dot ' + state;
+  $('#status-dot').className = 'dot ' + state;
   $('#status-text').textContent = text;
 }
-
 function showPanel(id) {
-  ['panel-init', 'panel-waiting', 'panel-transfer'].forEach(p => {
-    $('#' + p).classList.toggle('hidden', p !== id);
+  ['panel-init', 'panel-waiting', 'panel-transfer'].forEach(function (p) {
+    $('#' + p).classList.toggle('show', p === id);
   });
 }
-
 function showError(msg) {
-  const el = $('#error-display');
-  el.textContent = msg;
-  el.classList.remove('hidden');
+  var el = $('#error-banner');
+  el.innerHTML = '<b>出错了</b>\n' + escapeHtml(msg);
+  el.classList.add('show');
 }
-
 function hideError() {
-  $('#error-display').classList.add('hidden');
+  $('#error-banner').classList.remove('show');
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+function formatSize(b) {
+  if (!b && b !== 0) return '-';
+  var u = ['B', 'KB', 'MB', 'GB', 'TB'];
+  var i = 0, n = b;
+  while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+  return n.toFixed(i === 0 ? 0 : 1) + ' ' + u[i];
+}
+function toastText(btn, text, restore) {
+  var orig = btn.textContent;
+  btn.textContent = text;
+  setTimeout(function () { btn.textContent = restore || orig; }, 1500);
 }
 
-// ---- 创建房间 ----
+/* ================= 生命周期 ================= */
+function resetSession() {
+  destroyed = true;
+  clearTimeout(connectTimer); connectTimer = null;
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  if (ttlTimer) { clearInterval(ttlTimer); ttlTimer = null; }
+  if (iceBatchTimer) { clearTimeout(iceBatchTimer); iceBatchTimer = null; }
+  try { if (dc) dc.close(); } catch (e) {}
+  try { if (pc) pc.close(); } catch (e) {}
+  if (roomCode) {
+    fetch('/api/snap/' + roomCode, { method: 'DELETE', keepalive: true }).catch(function () {});
+  }
+}
+
+function goHome() {
+  location.href = '/snap';
+}
+
+/* ================= 创建房间 ================= */
 async function createRoom() {
   hideError();
-  setStatus('connecting', '正在创建房间...');
+  setStatus('connecting', '正在创建房间…');
+  setStep(2);
   role = 'caller';
-  pendingIce = [];
+  resetVars();
 
   try {
     pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-
-    // 创建 DataChannel（发送方创建）
     dc = pc.createDataChannel('file-transfer', { ordered: true });
     setupDataChannel(dc);
 
-    // 收集 ICE candidate —— 缓存直到 roomCode 就绪
-    pc.onicecandidate = (e) => {
-      if (e.candidate) {
-        if (roomCode) {
-          sendIce(roomCode, 'caller', e.candidate);
-        } else {
-          pendingIce.push({ side: 'caller', candidate: e.candidate });
-        }
-      }
+    pc.onicecandidate = function (e) {
+      if (!e.candidate) return;
+      if (roomCode) queueIce('caller', e.candidate);
+      else pendingIce.push({ side: 'caller', candidate: e.candidate });
     };
+    pc.onconnectionstatechange = updateConnectionState;
 
-    pc.onconnectionstatechange = () => {
-      updateConnectionState();
-    };
-
-    // 创建 offer（不等 ICE 收集完成，使用 trickle ICE）
-    const offer = await pc.createOffer();
+    var offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
 
-    // 立即提交 offer 到信令服务器（不等 ICE 收集）
-    const res = await fetch('/api/snap', {
+    var res = await fetch('/api/snap', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ offer: pc.localDescription.sdp }),
     });
-    const data = await res.json();
-
-    if (!res.ok) throw new Error(data.error || '创建房间失败');
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || '创建房间失败（HTTP ' + res.status + '）');
 
     roomCode = data.code;
-    $('#room-code-display').textContent = roomCode;
-    const shareUrl = location.origin + '/snap?room=' + encodeURIComponent(roomCode);
-    $('#share-link').value = shareUrl;
+    roomCreatedAt = Math.floor(Date.now() / 1000);
+    renderRoomCode(roomCode);
+    $('#share-link').value = location.origin + '/snap?room=' + encodeURIComponent(roomCode);
 
     showPanel('panel-waiting');
-    setStatus('waiting', '等待对方加入... 房间码: ' + roomCode);
-
-    // 刷新缓存的 ICE candidates
+    setStatus('waiting', '等待对方加入…');
+    startTtlCountdown(ROOM_TTL_SEC);
     flushPendingIce();
-
     startConnectTimer();
-    // 开始轮询 answer
     startPolling();
   } catch (e) {
     setStatus('error', '创建失败');
+    setStep(1);
+    showPanel('panel-init');
     showError(e.message);
   }
 }
 
-// ---- 加入房间 ----
+function renderRoomCode(code) {
+  var box = $('#room-code-display');
+  box.innerHTML = '';
+  for (var i = 0; i < code.length; i++) {
+    var ch = document.createElement('span');
+    ch.className = 'ch';
+    ch.textContent = code[i];
+    ch.style.animationDelay = (i * 50) + 'ms';
+    box.appendChild(ch);
+  }
+}
+
+/* ================= 加入房间 ================= */
 async function joinRoom() {
-  const code = $('#join-code').value.trim();
+  var code = $('#join-code').value.trim();
   $('#join-error').classList.add('hidden');
 
-  if (!code || code.length < 4) {
-    $('#join-error').textContent = '请输入有效的房间码';
+  if (!/^[A-Za-z0-9]{6}$/.test(code)) {
+    $('#join-error').textContent = '房间码为 6 位字母数字，请检查后重试';
     $('#join-error').classList.remove('hidden');
+    $('#join-code').focus();
     return;
   }
 
   hideError();
-  setStatus('connecting', '正在加入房间...');
+  setStatus('connecting', '正在加入房间…');
+  setStep(2);
   role = 'callee';
-  pendingIce = [];
+  resetVars();
 
   try {
-    // 获取 offer
-    const res = await fetch('/api/snap/' + code);
-    const data = await res.json();
-
-    if (!res.ok) throw new Error(data.error || '房间不存在或已过期');
+    var res = await fetch('/api/snap/' + code);
+    var data = await res.json().catch(function () { return {}; });
+    if (!res.ok) throw new Error(data.error || '房间不存在或已过期，请确认房间码');
 
     roomCode = code;
     pc = new RTCPeerConnection({ iceServers: ICE_SERVERS });
-
-    // 接收方监听 DataChannel
-    pc.ondatachannel = (e) => {
+    pc.ondatachannel = function (e) {
       dc = e.channel;
       setupDataChannel(dc);
     };
-
-    // ICE candidate —— roomCode 已就绪，直接发送
-    pc.onicecandidate = (e) => {
-      if (e.candidate) {
-        sendIce(roomCode, 'callee', e.candidate);
-      }
+    pc.onicecandidate = function (e) {
+      if (e.candidate) queueIce('callee', e.candidate);
     };
+    pc.onconnectionstatechange = updateConnectionState;
 
-    pc.onconnectionstatechange = () => {
-      updateConnectionState();
-    };
-
-    // 设置远程 offer
     await pc.setRemoteDescription({ type: 'offer', sdp: data.offer });
-
-    // 创建 answer（不等 ICE 收集完成，使用 trickle ICE）
-    const answer = await pc.createAnswer();
+    var answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
 
-    // 立即提交 answer（不等 ICE 收集）
-    await fetch('/api/snap/' + roomCode, {
+    var post = await fetch('/api/snap/' + roomCode, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ answer: pc.localDescription.sdp }),
     });
+    if (!post.ok) {
+      var perr = await post.json().catch(function () { return {}; });
+      throw new Error(perr.error || '提交应答失败（HTTP ' + post.status + '）');
+    }
 
-    // 处理已收到的 caller ICE candidates
     flushPendingIce();
-
     startConnectTimer();
-    // 开始轮询 caller 的 ICE candidates
     startPolling();
   } catch (e) {
     setStatus('error', '加入失败');
+    setStep(1);
+    showPanel('panel-init');
+    $('#join-form').classList.add('show');
     showError(e.message);
   }
 }
 
-function showJoinInput() {
-  $('#join-input').classList.remove('hidden');
-  $('#join-code').focus();
+function resetVars() {
+  destroyed = false;
+  iceReceivedCount = 0;
+  pendingIce = [];
+  iceBatch = [];
+  iceChain = Promise.resolve();
+  sendQueue = [];
+  sendBusy = false;
+  recvMeta = null;
+  recvParts = [];
+  recvBuf = [];
+  recvBufSize = 0;
+  recvSize = 0;
+  rowMap = new Map();
+  $('#file-list').innerHTML = '';
+  $('#conn-quality').textContent = '';
 }
 
-// ---- 刷新缓存的 ICE candidates ----
+/* ================= ICE 批量串行发送 ================= */
+function queueIce(side, candidate) {
+  iceBatch.push(candidate);
+  if (iceBatchTimer) return;
+  iceBatchTimer = setTimeout(function () {
+    iceBatchTimer = null;
+    var batch = iceBatch;
+    iceBatch = [];
+    iceChain = iceChain.then(function () {
+      return fetch('/api/snap/' + roomCode, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ice: batch, side: side }),
+      }).catch(function () {});
+    });
+  }, 150);
+}
+
 function flushPendingIce() {
-  if (!roomCode || pendingIce.length === 0) return;
-  for (const { side, candidate } of pendingIce) {
-    sendIce(roomCode, side, candidate);
-  }
+  if (!roomCode || !pendingIce.length) return;
+  pendingIce.forEach(function (p) { queueIce(p.side, p.candidate); });
   pendingIce = [];
 }
 
-// ---- 连接超时计时器 ----
+/* ================= 信令轮询 ================= */
+function startPolling() {
+  if (pollTimer) clearInterval(pollTimer);
+  pollTimer = setInterval(pollSignal, POLL_INTERVAL);
+  pollSignal();
+}
+
+async function pollSignal() {
+  if (!roomCode || destroyed) return;
+  try {
+    var res = await fetch('/api/snap/' + roomCode);
+    if (!res.ok) {
+      if (res.status === 404 && role === 'caller' && pc && pc.connectionState !== 'connected') {
+        setStatus('error', '房间已过期，请重新创建');
+        showError('房间已超过 5 分钟有效期，请重新创建。');
+        showRetry();
+        clearInterval(pollTimer); pollTimer = null;
+        if (ttlTimer) { clearInterval(ttlTimer); ttlTimer = null; }
+      }
+      return;
+    }
+    var data = await res.json();
+
+    if (role === 'caller' && data.answer && pc && !pc.currentRemoteDescription) {
+      await pc.setRemoteDescription({ type: 'answer', sdp: data.answer });
+    }
+
+    var otherIce = role === 'caller' ? data.calleeIce : data.callerIce;
+    if (otherIce && otherIce.length > iceReceivedCount) {
+      for (var i = iceReceivedCount; i < otherIce.length; i++) {
+        try {
+          var candidate = JSON.parse(otherIce[i]);
+          if (candidate && pc && pc.remoteDescription) {
+            await pc.addIceCandidate(candidate);
+          }
+        } catch (e) { /* 忽略单个坏 candidate */ }
+      }
+      iceReceivedCount = otherIce.length;
+    }
+  } catch (e) { /* 网络抖动，下一轮重试 */ }
+}
+
+/* ================= 连接状态 ================= */
 function startConnectTimer() {
-  clearConnectTimer();
-  connectTimer = setTimeout(() => {
-    if (pc && pc.connectionState !== 'connected' && pc.connectionState !== 'closed') {
-      setStatus('error', '连接超时 — 可能 NAT 穿透失败，请尝试更换网络或使用 VPN');
-      showError('P2P 连接超时。可能原因：\n1. 双方都在严格的 NAT/防火墙后\n2. 需要 TURN 中继服务器\n3. 浏览器不支持 WebRTC');
+  clearTimeout(connectTimer);
+  connectTimer = setTimeout(function () {
+    if (pc && pc.connectionState !== 'connected' && pc.connectionState !== 'closed' && !destroyed) {
+      setStatus('error', '连接超时');
+      showError('P2P 连接超时（20 秒）。常见原因：\n1. 双方都在严格的 NAT / 防火墙之后（需要 TURN 中继）\n2. 浏览器或网络禁用了 WebRTC / UDP\n3. 可尝试切换网络（如手机热点）后重试');
+      showRetry();
       if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
     }
   }, CONNECT_TIMEOUT);
 }
 
-function clearConnectTimer() {
-  if (connectTimer) {
-    clearTimeout(connectTimer);
-    connectTimer = null;
-  }
+function showRetry() {
+  $('#panel-retry').classList.remove('hidden');
 }
 
-// ---- 发送 ICE candidate ----
-async function sendIce(code, side, candidate) {
-  try {
-    await fetch('/api/snap/' + code, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        ice: JSON.stringify(candidate),
-        side: side,
-      }),
-    });
-  } catch {}
-}
-
-// ---- 轮询信令 ----
-function startPolling() {
-  if (pollTimer) clearInterval(pollTimer);
-  pollTimer = setInterval(pollSignal, POLL_INTERVAL);
-  pollSignal(); // 立即执行一次
-}
-
-async function pollSignal() {
-  if (!roomCode) return;
-  try {
-    const res = await fetch('/api/snap/' + roomCode);
-    if (!res.ok) {
-      if (res.status === 404 && role === 'caller') {
-        setStatus('error', '房间已过期');
-        clearInterval(pollTimer);
-        pollTimer = null;
-      }
-      return;
-    }
-    const data = await res.json();
-
-    // caller: 等待 answer
-    if (role === 'caller' && data.answer && pc && !pc.currentRemoteDescription) {
-      await pc.setRemoteDescription({ type: 'answer', sdp: data.answer });
-    }
-
-    // 处理对方的 ICE candidates（增量添加）
-    const otherIce = role === 'caller' ? data.calleeIce : data.callerIce;
-    if (otherIce && Array.isArray(otherIce) && otherIce.length > 0) {
-      for (let i = iceReceivedCount; i < otherIce.length; i++) {
-        try {
-          const candidate = JSON.parse(otherIce[i]);
-          if (candidate && pc && pc.remoteDescription) {
-            await pc.addIceCandidate(candidate);
-          }
-        } catch (e) {
-          console.warn('Failed to add ICE candidate:', e);
-        }
-      }
-      iceReceivedCount = otherIce.length;
-    }
-  } catch (e) {
-    console.warn('Poll error:', e);
-  }
-}
-
-// ---- 连接状态更新 ----
 function updateConnectionState() {
-  if (!pc) return;
-  const state = pc.connectionState;
+  if (!pc || destroyed) return;
+  var state = pc.connectionState;
   if (state === 'connected') {
-    clearConnectTimer();
-    setStatus('connected', '已连接 - 可以互传文件了');
+    clearTimeout(connectTimer); connectTimer = null;
+    hideError();
+    setStatus('connected', '已连接，可以互传文件');
+    setStep(3);
     showPanel('panel-transfer');
-    if (pollTimer) {
-      clearInterval(pollTimer);
-      pollTimer = null;
-    }
-    // 清理房间
-    fetch('/api/snap/' + roomCode, { method: 'DELETE' }).catch(() => {});
-  } else if (state === 'connecting' || state === 'new') {
-    setStatus('connecting', '正在建立 P2P 连接...');
-  } else if (state === 'disconnected') {
-    setStatus('warning', '连接暂时中断，正在尝试恢复...');
-  } else if (state === 'failed') {
-    clearConnectTimer();
-    setStatus('error', '连接失败 — 可能 NAT 穿透不成功');
-    showError('P2P 连接失败。可能原因：\n1. 双方都在严格 NAT 后（需 TURN 服务器）\n2. 浏览器限制了 WebRTC\n3. 网络防火墙拦截了 UDP 流量');
+    $('#panel-retry').classList.add('hidden');
     if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+    if (ttlTimer) { clearInterval(ttlTimer); ttlTimer = null; }
+    // 连接建立后信令房间不再需要，主动清理
+    if (roomCode) {
+      fetch('/api/snap/' + roomCode, { method: 'DELETE' }).catch(function () {});
+    }
+    reportConnectionQuality();
+  } else if (state === 'connecting' || state === 'new') {
+    setStatus('connecting', '正在建立 P2P 连接…');
+  } else if (state === 'disconnected') {
+    setStatus('warning', '连接暂时中断，正在尝试恢复…');
+  } else if (state === 'failed') {
+    clearTimeout(connectTimer); connectTimer = null;
+    setStatus('error', '连接失败');
+    showError('P2P 连接失败。可能双方都在严格 NAT 之后，或网络禁用了 UDP。可换网络环境后重试。');
+    showRetry();
+    if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  } else if (state === 'closed') {
+    setStatus('idle', '连接已断开');
   }
 }
 
-// ---- DataChannel 设置 ----
+// 通过 getStats 报告连接类型（host=局域网直连 / srflx=NAT 穿透 / relay=中继）
+async function reportConnectionQuality() {
+  if (!pc || !pc.getStats) return;
+  try {
+    var stats = await pc.getStats();
+    var localType = '';
+    stats.forEach(function (r) {
+      if (r.type === 'candidate-pair' && r.state === 'succeeded' && r.nominated && r.localCandidateId) {
+        stats.forEach(function (c) {
+          if (c.id === r.localCandidateId) localType = c.candidateType || '';
+        });
+      }
+    });
+    var label = { host: '局域网直连', srflx: 'NAT 穿透', prflx: 'NAT 穿透', relay: '中继转发' }[localType] || '';
+    if (label) $('#conn-quality').innerHTML = '<span class="badge badge-teal">' + label + '</span>';
+  } catch (e) { /* 不支持则跳过 */ }
+}
+
+/* ================= 房间 TTL 倒计时 ================= */
+function startTtlCountdown(totalSec) {
+  var left = totalSec;
+  var badge = $('#ttl-badge');
+  function tick() {
+    var m = Math.floor(left / 60);
+    var s = left % 60;
+    badge.textContent = '有效期 ' + m + ':' + (s < 10 ? '0' : '') + s;
+    badge.classList.toggle('low', left <= 60);
+    if (--left < 0 && ttlTimer) { clearInterval(ttlTimer); ttlTimer = null; }
+  }
+  tick();
+  ttlTimer = setInterval(tick, 1000);
+}
+
+/* ================= DataChannel ================= */
 function setupDataChannel(channel) {
   channel.binaryType = 'arraybuffer';
+  channel.bufferedAmountLowThreshold = BUFFER_LOW;
 
-  let recvMeta = null;
-  let recvChunks = [];
-  let recvSize = 0;
-
-  channel.onopen = () => {
-    setStatus('connected', '已连接 - 可以互传文件了');
+  channel.onopen = function () {
+    hideError();
+    setStatus('connected', '已连接，可以互传文件');
+    setStep(3);
     showPanel('panel-transfer');
   };
 
-  channel.onclose = () => {
-    setStatus('error', '连接已关闭');
-  };
-
-  channel.onerror = (e) => {
-    console.error('DataChannel error:', e);
-  };
-
-  channel.onmessage = (e) => {
-    const data = e.data;
-    if (typeof data === 'string') {
-      let msg;
-      try {
-        msg = JSON.parse(data);
-      } catch (e) {
-        console.warn('Non-JSON message received:', data);
-        return;
+  channel.onclose = function () {
+    // 传输中断检测：有未完成文件则标记失败
+    if (recvMeta) {
+      updateRowStatus(recvMeta.fileId, 'error', '传输中断');
+      recvMeta = null;
+      recvParts = []; recvBuf = []; recvBufSize = 0; recvSize = 0;
+    }
+    sendQueue = [];
+    rowMap.forEach(function (entry) {
+      if (entry.status.classList.contains('sending')) {
+        updateRowStatus(entry.row.dataset.fileId, 'error', '连接中断');
       }
+    });
+    setStatus('error', '连接已断开');
+  };
+
+  channel.onerror = function () {
+    setStatus('error', '传输通道出错');
+  };
+
+  channel.onmessage = function (e) {
+    var data = e.data;
+    if (typeof data === 'string') {
+      var msg;
+      try { msg = JSON.parse(data); } catch (err) { return; }
       if (msg.type === 'file-start') {
         recvMeta = msg;
-        recvChunks = [];
-        recvSize = 0;
-        addReceivedFileItem(msg.name, msg.size, msg.fileId);
+        recvParts = []; recvBuf = []; recvBufSize = 0; recvSize = 0;
+        addFileRow(msg.fileId, msg.name, msg.size, 'in');
       } else if (msg.type === 'file-end') {
-        if (recvMeta) {
-          const blob = new Blob(recvChunks, { type: recvMeta.mime || 'application/octet-stream' });
-          offerDownload(recvMeta.fileId, blob);
-          updateFileItemStatus(recvMeta.fileId, 'received', '已接收');
+        finishReceive();
+      } else if (msg.type === 'file-cancel') {
+        if (recvMeta && recvMeta.fileId === msg.fileId) {
+          updateRowStatus(msg.fileId, 'error', '对方取消');
           recvMeta = null;
-          recvChunks = [];
-          recvSize = 0;
+          recvParts = []; recvBuf = []; recvBufSize = 0; recvSize = 0;
         }
-      } else if (msg.type === 'text') {
-        // 简单文本消息
-        console.log('Received text:', msg.content);
       }
     } else if (data instanceof ArrayBuffer) {
-      if (recvMeta) {
-        recvChunks.push(data);
-        recvSize += data.byteLength;
-        updateFileProgress(recvMeta.fileId, recvSize, recvMeta.size);
+      if (!recvMeta) return;
+      recvBuf.push(data);
+      recvBufSize += data.byteLength;
+      recvSize += data.byteLength;
+      if (recvBufSize >= RECV_MERGE_SIZE) {
+        recvParts.push(new Blob(recvBuf));
+        recvBuf = []; recvBufSize = 0;
       }
+      updateRowProgress(recvMeta.fileId, recvSize, recvMeta.size);
     }
   };
 }
 
-// ---- 发送文件 ----
-async function sendFiles(fileList) {
-  if (!dc || dc.readyState !== 'open') {
-    showError('连接未建立，无法发送文件');
-    return;
+function finishReceive() {
+  if (!recvMeta) return;
+  if (recvBufSize > 0) {
+    recvParts.push(new Blob(recvBuf));
+    recvBuf = []; recvBufSize = 0;
   }
-
-  for (const file of fileList) {
-    await sendOneFile(file);
-  }
-  // 清空 input 以便重复选择
-  $('#file-input').value = '';
+  var blob = new Blob(recvParts, { type: recvMeta.mime || 'application/octet-stream' });
+  var sizeOk = blob.size === recvMeta.size;
+  offerDownload(recvMeta.fileId, blob);
+  updateRowStatus(recvMeta.fileId, 'received', sizeOk ? '已接收' : '已接收(大小不符)');
+  recvMeta = null;
+  recvParts = [];
+  recvSize = 0;
 }
 
-async function sendOneFile(file) {
-  const fileId = file.name + '-' + Date.now();
-  const item = addSentFileItem(file.name, file.size, fileId);
+/* ================= 发送队列 ================= */
+function enqueueFiles(fileList) {
+  if (!dc || dc.readyState !== 'open') {
+    showError('连接尚未建立，请等待连接成功后再发送。');
+    return;
+  }
+  hideError();
+  Array.prototype.forEach.call(fileList, function (f) {
+    var fileId = (crypto.randomUUID ? crypto.randomUUID() : 'f' + Date.now() + Math.random().toString(16).slice(2));
+    sendQueue.push({ file: f, fileId: fileId, cancelled: false });
+    addFileRow(fileId, f.name, f.size, 'out');
+  });
+  pumpSendQueue();
+}
 
-  // 发送文件元信息
+async function pumpSendQueue() {
+  if (sendBusy) return;
+  sendBusy = true;
+  while (sendQueue.length) {
+    var item = sendQueue[0];
+    if (item.cancelled) { sendQueue.shift(); continue; }
+    await sendOneFile(item);
+    sendQueue.shift();
+  }
+  sendBusy = false;
+}
+
+function waitBufferLow() {
+  return new Promise(function (resolve) {
+    if (dc.bufferedAmount <= BUFFER_LOW) return resolve();
+    var handler = function () {
+      dc.removeEventListener('bufferedamountlow', handler);
+      resolve();
+    };
+    dc.addEventListener('bufferedamountlow', handler);
+  });
+}
+
+async function sendOneFile(item) {
+  var file = item.file;
+  var fileId = item.fileId;
+
+  updateRowStatus(fileId, 'sending', '发送中');
   dc.send(JSON.stringify({
     type: 'file-start',
     fileId: fileId,
     name: file.name,
     size: file.size,
-    mime: file.type,
+    mime: file.type || 'application/octet-stream',
   }));
 
-  // 分块发送
-  let offset = 0;
-  const reader = file.stream().getReader();
+  var offset = 0;
+  var reader = file.stream().getReader();
 
   try {
     while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+      if (item.cancelled) {
+        try { await reader.cancel(); } catch (e) {}
+        dc.send(JSON.stringify({ type: 'file-cancel', fileId: fileId }));
+        updateRowStatus(fileId, 'error', '已取消');
+        return;
+      }
+      if (dc.readyState !== 'open') throw new Error('channel closed');
 
-      // value 是 Uint8Array，可能大于 CHUNK_SIZE，需要切分
-      let chunkOffset = 0;
+      var r = await reader.read();
+      if (r.done) break;
+      var value = r.value;
+
+      var chunkOffset = 0;
       while (chunkOffset < value.length) {
-        const chunk = value.subarray(chunkOffset, chunkOffset + CHUNK_SIZE);
-        // 等待缓冲区有空间
-        if (dc.bufferedAmount > 4 * 1024 * 1024) {
-          await new Promise(r => setTimeout(r, 20));
+        if (dc.bufferedAmount > BUFFER_HIGH) {
+          await waitBufferLow();
         }
-        dc.send(chunk);
+        var chunk = value.subarray(chunkOffset, chunkOffset + CHUNK_SIZE);
+        dc.send(chunk.buffer.slice(chunk.byteOffset, chunk.byteOffset + chunk.length));
         chunkOffset += chunk.length;
         offset += chunk.length;
-        updateFileProgress(fileId, offset, file.size);
+        updateRowProgress(fileId, offset, file.size);
       }
     }
 
-    // 发送结束标记
     dc.send(JSON.stringify({ type: 'file-end', fileId: fileId }));
-    updateFileItemStatus(fileId, 'done', '已发送');
+    updateRowStatus(fileId, 'done', '已发送');
   } catch (e) {
-    updateFileItemStatus(fileId, 'error', '发送失败');
-    console.error('Send error:', e);
+    updateRowStatus(fileId, 'error', '发送失败');
+    try { await reader.cancel(); } catch (err) {}
   }
 }
 
-// ---- 文件列表 UI ----
-function addSentFileItem(name, size, id) {
-  const list = $('#file-list');
-  const row = document.createElement('div');
-  row.className = 'file-row';
-  row.dataset.fileId = id;
-  row.innerHTML = `
-    <div style="flex:1;min-width:0;">
-      <div class="fname">${escapeHtml(name)}</div>
-      <div class="fsize">${formatSize(size)}</div>
-      <div class="progress"><div class="bar" style="width:0%"></div></div>
-    </div>
-    <div class="fstatus sending">发送中</div>
-  `;
-  list.appendChild(row);
-  return row;
-}
+/* ================= 文件行 UI ================= */
+function addFileRow(fileId, name, size, dir) {
+  var row = document.createElement('div');
+  row.className = 'file-row ' + dir;
+  row.dataset.fileId = fileId;
+  var isOut = dir === 'out';
+  row.innerHTML =
+    '<span class="fico ' + (isOut ? 'up' : 'down') + '"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +
+    (isOut
+      ? '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>'
+      : '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="3" x2="12" y2="15"/>') +
+    '</svg></span>' +
+    '<div class="fmain">' +
+      '<div class="fname">' + escapeHtml(name) + '</div>' +
+      '<div class="fmeta"><span class="fsize">' + formatSize(size) + '</span><span class="fspeed"></span></div>' +
+      '<div class="progress"><div class="bar"></div></div>' +
+    '</div>' +
+    '<div class="fact">' +
+      '<span class="fstatus sending">' + (isOut ? '排队中' : '接收中') + '</span>' +
+      (isOut ? '<button type="button" class="btn xcancel" title="取消"><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>' : '') +
+    '</div>';
+  $('#file-list').appendChild(row);
 
-function addReceivedFileItem(name, size, id) {
-  const list = $('#file-list');
-  const row = document.createElement('div');
-  row.className = 'file-row';
-  row.dataset.fileId = id;
-  row.innerHTML = `
-    <div style="flex:1;min-width:0;">
-      <div class="fname">${escapeHtml(name)}</div>
-      <div class="fsize">${formatSize(size)}</div>
-      <div class="progress"><div class="bar" style="width:0%"></div></div>
-    </div>
-    <div class="fstatus sending">接收中</div>
-  `;
-  list.appendChild(row);
-  return row;
-}
+  var entry = {
+    row: row,
+    bar: row.querySelector('.bar'),
+    status: row.querySelector('.fstatus'),
+    speed: row.querySelector('.fspeed'),
+    lastBytes: 0,
+    lastTime: Date.now(),
+  };
+  rowMap.set(fileId, entry);
 
-function updateFileProgress(fileId, current, total) {
-  const rows = document.querySelectorAll('.file-row');
-  for (const row of rows) {
-    if (row.dataset.fileId === fileId) {
-      const pct = total > 0 ? Math.min(100, (current / total) * 100) : 0;
-      row.querySelector('.bar').style.width = pct + '%';
-      return;
-    }
-  }
-}
-
-function updateFileItemStatus(fileId, status, text) {
-  const rows = document.querySelectorAll('.file-row');
-  for (const row of rows) {
-    if (row.dataset.fileId === fileId) {
-      const st = row.querySelector('.fstatus');
-      st.className = 'fstatus ' + status;
-      st.textContent = text;
-      if (status === 'done' || status === 'received') {
-        row.querySelector('.bar').style.width = '100%';
+  var cancelBtn = row.querySelector('.xcancel');
+  if (cancelBtn) {
+    cancelBtn.addEventListener('click', function () {
+      for (var i = 0; i < sendQueue.length; i++) {
+        if (sendQueue[i].fileId === fileId) sendQueue[i].cancelled = true;
       }
-      return;
-    }
+      updateRowStatus(fileId, 'error', '已取消');
+      cancelBtn.remove();
+    });
+  }
+  return entry;
+}
+
+var progressThrottle = new Map();
+function updateRowProgress(fileId, current, total) {
+  var entry = rowMap.get(fileId);
+  if (!entry) return;
+  var now = Date.now();
+  var last = progressThrottle.get(fileId) || 0;
+  var done = total > 0 && current >= total;
+  if (!done && now - last < 100) return;   // 100ms 节流，减少 DOM 写入
+  progressThrottle.set(fileId, now);
+
+  var pct = total > 0 ? Math.min(100, (current / total) * 100) : 0;
+  entry.bar.style.width = pct + '%';
+
+  var dt = (now - entry.lastTime) / 1000;
+  if (dt > 0.4) {
+    var speed = (current - entry.lastBytes) / dt;
+    entry.speed.textContent = formatSize(speed) + '/s';
+    entry.lastBytes = current;
+    entry.lastTime = now;
+  }
+}
+
+function updateRowStatus(fileId, status, text) {
+  var entry = rowMap.get(fileId);
+  if (!entry) return;
+  entry.status.className = 'fstatus ' + status;
+  entry.status.textContent = text;
+  if (status === 'done' || status === 'received') {
+    entry.bar.style.width = '100%';
+    entry.speed.textContent = '';
+    var cancelBtn = entry.row.querySelector('.xcancel');
+    if (cancelBtn) cancelBtn.remove();
   }
 }
 
 function offerDownload(fileId, blob) {
-  const rows = document.querySelectorAll('.file-row');
-  for (const row of rows) {
-    if (row.dataset.fileId === fileId) {
-      const fname = row.querySelector('.fname');
-      const name = fname ? fname.textContent : 'file';
-      const url = URL.createObjectURL(blob);
-      const st = row.querySelector('.fstatus');
-      st.innerHTML = '';
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = name;
-      a.className = 'btn btn-sm';
-      a.textContent = '下载';
-      a.style.padding = '2px 10px';
-      st.appendChild(a);
-
-      // 自动点击下载
-      a.click();
-      return;
-    }
-  }
+  var entry = rowMap.get(fileId);
+  if (!entry) return;
+  var name = entry.row.querySelector('.fname').textContent;
+  var url = URL.createObjectURL(blob);
+  var st = entry.status;
+  st.innerHTML = '';
+  var a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.className = 'btn btn-sm btn-secondary';
+  a.textContent = '下载';
+  st.appendChild(a);
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
 }
 
-// ---- 工具函数 ----
-function escapeHtml(s) {
-  return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-}
-function formatSize(b) {
-  if (!b) return '-';
-  const u = ['B','KB','MB','GB','TB']; let i=0,n=b;
-  while(n>=1024&&i<u.length-1){n/=1024;i++;}
-  return n.toFixed(i===0?0:1)+' '+u[i];
-}
-function copyShareLink(e) {
-  const input = $('#share-link');
+/* ================= 事件绑定 ================= */
+$('#btn-create').addEventListener('click', createRoom);
+$('#btn-join').addEventListener('click', function () {
+  $('#join-form').classList.toggle('show');
+  if ($('#join-form').classList.contains('show')) $('#join-code').focus();
+});
+$('#btn-join-go').addEventListener('click', joinRoom);
+$('#join-code').addEventListener('keydown', function (e) {
+  if (e.key === 'Enter') joinRoom();
+});
+$('#join-code').addEventListener('input', function () {
+  this.value = this.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 6);
+});
+$('#btn-copy-link').addEventListener('click', function () {
+  var input = $('#share-link');
   input.select();
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(input.value).then(() => {
-      const btn = e.target;
-      const orig = btn.textContent;
-      btn.textContent = '已复制';
-      setTimeout(() => btn.textContent = orig, 1500);
-    });
+  var btn = this;
+  function done() { toastText(btn, '已复制', '复制链接'); }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(input.value).then(done, function () { document.execCommand('copy'); done(); });
   } else {
     document.execCommand('copy');
-  }
-}
-
-// ---- 拖拽上传 ----
-const dropZone = document.getElementById('drop-zone');
-dropZone.addEventListener('dragover', (e) => {
-  e.preventDefault();
-  dropZone.classList.add('dragover');
-});
-dropZone.addEventListener('dragleave', () => {
-  dropZone.classList.remove('dragover');
-});
-dropZone.addEventListener('drop', (e) => {
-  e.preventDefault();
-  dropZone.classList.remove('dragover');
-  if (e.dataTransfer.files.length > 0) {
-    sendFiles(e.dataTransfer.files);
+    done();
   }
 });
+$('#btn-cancel-wait').addEventListener('click', goHome);
+$('#btn-disconnect').addEventListener('click', goHome);
+$('#btn-retry').addEventListener('click', goHome);
 
-// ---- 自动加入（URL 带 room 参数） ----
-const params = new URLSearchParams(location.search);
-const autoRoom = params.get('room');
-if (autoRoom) {
+var dropZone = $('#drop-zone');
+var fileInput = $('#file-input');
+dropZone.addEventListener('click', function () { fileInput.click(); });
+dropZone.addEventListener('keydown', function (e) {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInput.click(); }
+});
+fileInput.addEventListener('change', function () {
+  enqueueFiles(fileInput.files);
+  fileInput.value = '';
+});
+['dragenter', 'dragover'].forEach(function (t) {
+  dropZone.addEventListener(t, function (e) { e.preventDefault(); dropZone.classList.add('dragover'); });
+});
+['dragleave', 'drop'].forEach(function (t) {
+  dropZone.addEventListener(t, function (e) { e.preventDefault(); dropZone.classList.remove('dragover'); });
+});
+dropZone.addEventListener('drop', function (e) {
+  if (e.dataTransfer && e.dataTransfer.files.length) enqueueFiles(e.dataTransfer.files);
+});
+
+/* ================= 初始化 ================= */
+// 站点名
+fetch('/api/config').then(function (r) { return r.ok ? r.json() : null; }).then(function (config) {
+  if (config && config.siteName) {
+    var mini = $('#brand-mini-name');
+    if (mini) mini.textContent = config.siteName;
+    document.title = '文件快传 | ' + config.siteName;
+  }
+}).catch(function () {});
+
+// URL 带 room 参数自动加入
+var autoRoom = new URLSearchParams(location.search).get('room');
+if (autoRoom && /^[A-Za-z0-9]{6}$/.test(autoRoom)) {
   $('#join-code').value = autoRoom;
-  $('#join-input').classList.remove('hidden');
+  $('#join-form').classList.add('show');
   joinRoom();
 } else {
-  setStatus('idle', '点击创建房间或输入房间码加入');
+  setStatus('idle', '创建房间或输入房间码加入');
+  setStep(1);
 }
 
-// 页面关闭时清理
-window.addEventListener('beforeunload', () => {
-  clearConnectTimer();
-  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-  if (dc) dc.close();
-  if (pc) pc.close();
-  if (roomCode) fetch('/api/snap/' + roomCode, { method: 'DELETE' }).catch(() => {});
+// 页面关闭清理
+window.addEventListener('beforeunload', function () {
+  destroyed = true;
+  clearTimeout(connectTimer);
+  if (pollTimer) clearInterval(pollTimer);
+  if (ttlTimer) clearInterval(ttlTimer);
+  try { if (dc) dc.close(); } catch (e) {}
+  try { if (pc) pc.close(); } catch (e) {}
+  if (roomCode) {
+    fetch('/api/snap/' + roomCode, { method: 'DELETE', keepalive: true }).catch(function () {});
+  }
 });
+})();
 </script>
 </body>
 </html>
