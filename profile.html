@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>个人中心</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="/assets/theme.css">
+<style>
+  .profile-wrap { max-width: 720px; margin: var(--sp-4) auto; padding: 0 var(--sp-2); display: grid; gap: var(--sp-3); }
+  .profile-head { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+  .avatar { width: 64px; height: 64px; display: grid; place-items: center; background: var(--c-yellow); border: var(--bd) solid var(--c-ink); border-radius: var(--radius-sm); box-shadow: var(--shadow); font-family: var(--font-head); font-size: 28px; font-weight: 700; }
+  .profile-meta { display: grid; gap: 10px; margin-top: var(--sp-3); }
+  .meta-row { display: flex; justify-content: space-between; gap: var(--sp-2); padding: 10px 0; border-bottom: var(--bd-thin) dashed var(--c-ink); flex-wrap: wrap; }
+  .meta-row:last-child { border-bottom: 0; }
+  .meta-row dt { font-weight: 700; }
+  .meta-row dd { margin: 0; color: var(--c-ink-soft); font-family: var(--font-mono); font-size: 14px; }
+  .quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-2); }
+  .quick-grid a { display: flex; align-items: center; gap: 8px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="topbar">
+    <a class="brand-mini" href="/">
+      <span class="logo-badge" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>
+      <span>个人中心</span>
+    </a>
+    <nav><span data-user-chip></span></nav>
+  </header>
+
+  <main class="profile-wrap" id="profile-main" hidden>
+    <section class="card card-pad">
+      <div class="profile-head">
+        <div class="avatar" id="avatar" aria-hidden="true">?</div>
+        <div>
+          <h1 style="margin:0; font-size:24px;" id="profile-username">—</h1>
+          <span class="badge badge-teal" id="profile-status">已登录</span>
+        </div>
+      </div>
+      <dl class="profile-meta">
+        <div class="meta-row"><dt>注册时间</dt><dd id="meta-created">—</dd></div>
+        <div class="meta-row"><dt>最近登录</dt><dd id="meta-login">—</dd></div>
+        <div class="meta-row"><dt>登录状态保持</dt><dd>30 天（关闭浏览器后仍有效）</dd></div>
+      </dl>
+      <div style="margin-top: var(--sp-3); display:flex; gap: var(--sp-2); flex-wrap: wrap;">
+        <button class="btn btn-danger" type="button" id="btn-logout">退出登录</button>
+      </div>
+    </section>
+
+    <section class="card card-pad">
+      <h2 style="margin:0 0 var(--sp-2); font-size:18px;">我的功能</h2>
+      <div class="quick-grid">
+        <a class="btn" href="/netdisk"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>我的网盘</span></a>
+        <a class="btn" href="/imgbed"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><span>图床上传</span></a>
+        <a class="btn" href="/snap"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span>P2P 快传</span></a>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script src="/assets/site-user.js" defer></script>
+<script>
+(function () {
+  'use strict';
+
+  function fmt(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (isNaN(d)) return '—';
+    return d.toLocaleString('zh-CN', { hour12: false });
+  }
+
+  fetch('/api/auth/me', { credentials: 'include' })
+    .then(function (res) { return res.ok ? res.json() : null; })
+    .then(function (data) {
+      if (!data || !data.authEnabled) {
+        window.location.replace('/');
+        return;
+      }
+      if (!data.user) {
+        window.location.replace('/auth?next=' + encodeURIComponent('/profile'));
+        return;
+      }
+      document.getElementById('profile-main').hidden = false;
+      document.getElementById('profile-username').textContent = data.user.username;
+      document.getElementById('avatar').textContent = data.user.username.charAt(0).toUpperCase();
+      document.getElementById('meta-created').textContent = fmt(data.user.createdAt);
+      document.getElementById('meta-login').textContent = fmt(data.user.lastLoginAt);
+    })
+    .catch(function () {
+      window.location.replace('/auth?next=' + encodeURIComponent('/profile'));
+    });
+
+  document.getElementById('btn-logout').addEventListener('click', function () {
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+      .finally(function () { window.location.href = '/'; });
+  });
+})();
+</script>
+</body>
+</html>

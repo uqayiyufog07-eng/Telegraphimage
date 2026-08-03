@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>登录 / 注册</title>
+<link rel="icon" href="/favicon.ico">
+<link rel="stylesheet" href="/assets/theme.css">
+<style>
+  body { min-height: 100vh; display: flex; flex-direction: column; }
+  .auth-wrap { flex: 1; display: flex; align-items: center; justify-content: center; padding: var(--sp-4) var(--sp-2); }
+  .auth-card { width: 100%; max-width: 420px; }
+  .auth-tabs { display: flex; gap: var(--sp-1); margin-bottom: var(--sp-4); }
+  .auth-tabs button { flex: 1; }
+  .auth-tabs button[aria-selected="true"] { background: var(--c-yellow); }
+  .field { margin-bottom: var(--sp-3); }
+  .field label { display: block; font-weight: 700; margin-bottom: 6px; }
+  .field .hint { font-size: 13px; color: var(--c-ink-soft); margin-top: 6px; }
+  .field .error-text { font-size: 13px; color: #c0392b; font-weight: 600; margin-top: 6px; display: none; }
+  .field.invalid .error-text { display: block; }
+  .field.invalid .input { border-color: #c0392b; }
+  .form-banner { display: none; padding: 12px 14px; border: var(--bd-thin) solid var(--c-ink); border-radius: var(--radius-sm); font-weight: 600; margin-bottom: var(--sp-3); }
+  .form-banner.show { display: block; animation: pop-in var(--dur-mid) var(--ease-pop) both; }
+  .form-banner.error { background: var(--c-coral); }
+  .form-banner.ok { background: var(--c-teal); }
+  .auth-submit { width: 100%; }
+  .auth-foot { margin-top: var(--sp-3); text-align: center; font-size: 14px; color: var(--c-ink-soft); }
+  .auth-foot a { color: var(--c-ink); font-weight: 700; }
+  .pwd-meter { height: 8px; border: var(--bd-thin) solid var(--c-ink); border-radius: 99px; margin-top: 8px; overflow: hidden; background: var(--c-paper); }
+  .pwd-meter > i { display: block; height: 100%; width: 0; background: var(--c-coral); transition: width .2s, background .2s; }
+</style>
+</head>
+<body>
+<div class="page">
+  <header class="topbar">
+    <a class="brand-mini" href="/">
+      <span class="logo-badge" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg></span>
+      <span id="brand-mini-name">返回首页</span>
+    </a>
+    <nav><span data-user-chip></span></nav>
+  </header>
+
+  <div class="auth-wrap">
+    <div class="card card-pad auth-card" id="auth-card" hidden>
+      <h1 style="margin:0 0 var(--sp-3); font-size:24px;" id="auth-title">欢迎回来</h1>
+
+      <div class="auth-tabs" role="tablist" id="auth-tabs">
+        <button class="btn btn-sm" type="button" role="tab" id="tab-login" aria-selected="true">登录</button>
+        <button class="btn btn-sm" type="button" role="tab" id="tab-register" aria-selected="false">注册</button>
+      </div>
+
+      <div class="form-banner" id="form-banner" role="alert"></div>
+
+      <form id="form-login" novalidate>
+        <div class="field" id="field-login-username">
+          <label for="login-username">用户名</label>
+          <input class="input" id="login-username" name="username" autocomplete="username" required>
+          <div class="error-text">请输入用户名</div>
+        </div>
+        <div class="field" id="field-login-password">
+          <label for="login-password">密码</label>
+          <input class="input" id="login-password" name="password" type="password" autocomplete="current-password" required>
+          <div class="error-text">请输入密码</div>
+        </div>
+        <button class="btn btn-primary auth-submit" type="submit" id="login-submit">登 录</button>
+      </form>
+
+      <form id="form-register" novalidate hidden>
+        <div class="field" id="field-reg-username">
+          <label for="reg-username">用户名</label>
+          <input class="input" id="reg-username" name="username" autocomplete="username" required>
+          <div class="hint">3-32 位字母、数字、下划线或连字符</div>
+          <div class="error-text"></div>
+        </div>
+        <div class="field" id="field-reg-password">
+          <label for="reg-password">密码</label>
+          <input class="input" id="reg-password" name="password" type="password" autocomplete="new-password" required>
+          <div class="pwd-meter" aria-hidden="true"><i id="pwd-meter-bar"></i></div>
+          <div class="hint" id="pwd-hint">至少 8 个字符，建议混合字母与数字</div>
+          <div class="error-text"></div>
+        </div>
+        <div class="field" id="field-reg-confirm">
+          <label for="reg-confirm">确认密码</label>
+          <input class="input" id="reg-confirm" type="password" autocomplete="new-password" required>
+          <div class="error-text">两次输入的密码不一致</div>
+        </div>
+        <button class="btn btn-primary auth-submit" type="submit" id="reg-submit">注册并登录</button>
+      </form>
+
+      <p class="auth-foot">登录即表示同意本站的合理使用约定 · <a href="/">返回首页</a></p>
+    </div>
+
+    <div class="card card-pad auth-card" id="auth-unavailable" hidden>
+      <h1 style="margin:0 0 var(--sp-2); font-size:24px;">用户系统未启用</h1>
+      <p>本站尚未开启账号功能（需要绑定 KV 命名空间）。你现在仍可以直接使用图床、快传等无需账号的功能。</p>
+      <a class="btn btn-primary" href="/">返回首页</a>
+    </div>
+  </div>
+</div>
+
+<script src="/assets/site-user.js" defer></script>
+<script>
+(function () {
+  'use strict';
+
+  var params = new URLSearchParams(location.search);
+  var next = params.get('next') || '/';
+  if (!/^\/[^/]/.test(next) && next !== '/') next = '/'; // 仅允许站内跳转，防开放重定向
+
+  var card = document.getElementById('auth-card');
+  var unavailable = document.getElementById('auth-unavailable');
+  var banner = document.getElementById('form-banner');
+  var title = document.getElementById('auth-title');
+  var tabLogin = document.getElementById('tab-login');
+  var tabRegister = document.getElementById('tab-register');
+  var formLogin = document.getElementById('form-login');
+  var formRegister = document.getElementById('form-register');
+
+  function showBanner(kind, text) {
+    banner.className = 'form-banner show ' + kind;
+    banner.textContent = text;
+  }
+  function hideBanner() { banner.className = 'form-banner'; }
+
+  function setMode(mode) {
+    var isLogin = mode === 'login';
+    tabLogin.setAttribute('aria-selected', isLogin ? 'true' : 'false');
+    tabRegister.setAttribute('aria-selected', isLogin ? 'false' : 'true');
+    formLogin.hidden = !isLogin;
+    formRegister.hidden = isLogin;
+    title.textContent = isLogin ? '欢迎回来' : '创建账号';
+    hideBanner();
+  }
+
+  tabLogin.addEventListener('click', function () { setMode('login'); });
+  tabRegister.addEventListener('click', function () { setMode('register'); });
+
+  function fieldError(fieldId, inputId, message) {
+    var field = document.getElementById(fieldId);
+    var err = field.querySelector('.error-text');
+    if (message) {
+      err.textContent = message;
+      field.classList.add('invalid');
+      document.getElementById(inputId).focus();
+      return false;
+    }
+    field.classList.remove('invalid');
+    return true;
+  }
+
+  // 密码强度提示（仅前端提示，不阻止提交）
+  var regPassword = document.getElementById('reg-password');
+  var meterBar = document.getElementById('pwd-meter-bar');
+  var pwdHint = document.getElementById('pwd-hint');
+  regPassword.addEventListener('input', function () {
+    var v = regPassword.value;
+    var score = 0;
+    if (v.length >= 8) score++;
+    if (v.length >= 12) score++;
+    if (/[a-z]/.test(v) && /[A-Z]/.test(v)) score++;
+    if (/\d/.test(v)) score++;
+    if (/[^a-zA-Z0-9]/.test(v)) score++;
+    var pct = Math.min(100, score * 20);
+    meterBar.style.width = pct + '%';
+    meterBar.style.background = score <= 2 ? 'var(--c-coral)' : (score <= 3 ? 'var(--c-yellow)' : 'var(--c-teal)');
+    pwdHint.textContent = score <= 2 ? '密码偏弱，建议更长并混合大小写、数字或符号' : (score <= 3 ? '强度一般，还可以更安全' : '密码强度不错');
+  });
+
+  function post(url, payload, submitBtn) {
+    submitBtn.disabled = true;
+    var original = submitBtn.textContent;
+    submitBtn.textContent = '请稍候…';
+    return fetch(url, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(function (res) {
+      return res.json().catch(function () { return {}; }).then(function (data) {
+        return { status: res.status, data: data };
+      });
+    }).finally(function () {
+      submitBtn.disabled = false;
+      submitBtn.textContent = original;
+    });
+  }
+
+  formLogin.addEventListener('submit', function (e) {
+    e.preventDefault();
+    hideBanner();
+    var username = document.getElementById('login-username').value.trim();
+    var password = document.getElementById('login-password').value;
+    var ok = fieldError('field-login-username', 'login-username', username ? '' : '请输入用户名');
+    ok = fieldError('field-login-password', 'login-password', password ? '' : '请输入密码') && ok;
+    if (!ok) return;
+
+    post('/api/auth/login', { username: username, password: password }, document.getElementById('login-submit'))
+      .then(function (r) {
+        if (r.status === 200 && r.data.ok) {
+          showBanner('ok', '登录成功，正在跳转…');
+          window.location.href = next;
+        } else {
+          showBanner('error', r.data.message || '登录失败，请稍后再试。');
+        }
+      })
+      .catch(function () { showBanner('error', '网络异常，请检查连接后重试。'); });
+  });
+
+  formRegister.addEventListener('submit', function (e) {
+    e.preventDefault();
+    hideBanner();
+    var username = document.getElementById('reg-username').value.trim();
+    var password = regPassword.value;
+    var confirm = document.getElementById('reg-confirm').value;
+
+    var ok = true;
+    if (!/^[a-zA-Z0-9_-]{3,32}$/.test(username)) {
+      ok = fieldError('field-reg-username', 'reg-username', '用户名需为 3-32 位字母、数字、下划线或连字符') && ok;
+    } else {
+      fieldError('field-reg-username', 'reg-username', '');
+    }
+    if (password.length < 8) {
+      ok = fieldError('field-reg-password', 'reg-password', '密码至少需要 8 个字符') && ok;
+    } else {
+      fieldError('field-reg-password', 'reg-password', '');
+    }
+    ok = fieldError('field-reg-confirm', 'reg-confirm', confirm === password ? '' : '两次输入的密码不一致') && ok;
+    if (!ok) return;
+
+    post('/api/auth/register', { username: username, password: password }, document.getElementById('reg-submit'))
+      .then(function (r) {
+        if (r.status === 200 && r.data.ok) {
+          showBanner('ok', '注册成功，正在跳转…');
+          window.location.href = next;
+        } else if (r.data.error === 'registration_closed') {
+          showBanner('error', r.data.message);
+          setMode('login');
+        } else {
+          showBanner('error', r.data.message || '注册失败，请稍后再试。');
+        }
+      })
+      .catch(function () { showBanner('error', '网络异常，请检查连接后重试。'); });
+  });
+
+  // 初始化：检查用户系统可用性、注册开关与既有登录态
+  fetch('/api/auth/me', { credentials: 'include' })
+    .then(function (res) { return res.ok ? res.json() : null; })
+    .then(function (data) {
+      if (!data || !data.authEnabled) {
+        unavailable.hidden = false;
+        return;
+      }
+      if (data.user) {
+        window.location.replace(next); // 已登录则直接去目标页
+        return;
+      }
+      card.hidden = false;
+      if (!data.registrationOpen) {
+        tabRegister.style.display = 'none';
+        setMode('login');
+      } else if (params.get('mode') === 'register') {
+        setMode('register');
+      }
+    })
+    .catch(function () {
+      card.hidden = false; // 网络异常时仍展示表单，提交时再报错
+    });
+})();
+</script>
+</body>
+</html>

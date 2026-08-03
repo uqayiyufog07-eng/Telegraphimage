@@ -178,6 +178,23 @@
     padding: 4px 8px; font-size: 12px;
   }
 
+  /* 连接状态横幅 */
+  .conn-banner {
+    display: none; align-items: flex-start; gap: 10px;
+    padding: 12px var(--sp-2); margin-bottom: var(--sp-2);
+    border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow-sm);
+    font-size: 14px; line-height: 1.6;
+  }
+  .conn-banner.show { display: flex; animation: pop-in var(--dur-mid) var(--ease-pop) both; }
+  .conn-banner .conn-icon { flex: none; width: 22px; height: 22px; margin-top: 2px; }
+  .conn-banner .conn-text { flex: 1; }
+  .conn-banner .conn-text b { display: block; font-family: var(--font-head); margin-bottom: 2px; }
+  .conn-banner .conn-actions { flex: none; display: flex; gap: 6px; }
+  .conn-banner.ok { background: var(--c-teal); color: var(--c-white); }
+  .conn-banner.warn { background: var(--c-yellow); }
+  .conn-banner.error { background: var(--c-coral); color: var(--c-white); }
+  .conn-banner.error .btn, .conn-banner.ok .btn { box-shadow: none; }
+
   /* Toast（复用 theme.css） */
   .toast-zone { z-index: 100; }
 
@@ -230,6 +247,12 @@
     .nd-table .col-time { display: none; }
     .nd-table .col-size { width: 80px; }
     .topbar nav .tab { padding: 6px 10px; font-size: 13px; }
+    .nd-dropzone { width: 100%; justify-content: center; }
+    .nd-toolbar .btn { flex: 1 1 auto; justify-content: center; }
+    .nd-toolbar .spacer { display: none; }
+    .conn-banner { flex-direction: column; }
+    .conn-banner .conn-actions { width: 100%; }
+    .conn-banner .conn-actions .btn { flex: 1; }
   }
 </style>
 </head>
@@ -252,6 +275,7 @@
       <a class="tab" href="/snap">快传</a>
       <a class="tab" href="/localsend">局域网</a>
       <a class="tab" href="/admin">后台</a>
+      <span data-user-chip></span>
     </nav>
   </header>
 
@@ -259,6 +283,13 @@
   <main class="nd-main">
     <!-- 面包屑 -->
     <div class="breadcrumb" id="breadcrumb"></div>
+
+    <!-- 连接状态横幅 -->
+    <div class="conn-banner" id="conn-banner" role="status">
+      <svg class="conn-icon" id="conn-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div class="conn-text" id="conn-text"></div>
+      <div class="conn-actions" id="conn-actions"></div>
+    </div>
 
     <!-- 工具栏 -->
     <div class="nd-toolbar">
@@ -399,10 +430,15 @@
       <span class="close" data-close>&times;</span>
     </div>
     <div class="modal-body">
+      <!-- 服务状态 -->
+      <div id="webdav-disabled-note" style="display:none; margin-bottom:var(--sp-2); padding:12px 14px; background:var(--c-coral); color:var(--c-white); border:var(--bd-thin) solid var(--c-ink); border-radius:var(--radius-sm); font-size:13px; line-height:1.6;">
+        <b>WebDAV 未启用。</b>需要绑定名为 img_r2 的 R2 存储桶后才能使用，请联系站长处理。
+      </div>
+
       <!-- 连接信息 -->
       <div class="webdav-section-title">连接信息</div>
       <div class="webdav-info-row">
-        <span class="label">挂载地址</span>
+        <span class="label">服务器地址</span>
         <span class="value" id="webdav-url">-</span>
         <button class="btn btn-secondary btn-sm copy-btn" id="webdav-copy-url">复制</button>
       </div>
@@ -415,39 +451,41 @@
         <span class="value" id="webdav-username">-</span>
         <button class="btn btn-secondary btn-sm copy-btn" id="webdav-copy-user">复制</button>
       </div>
+      <div class="webdav-info-row">
+        <span class="label">密码</span>
+        <span class="value" id="webdav-pass-hint">-</span>
+      </div>
 
       <!-- 客户端配置指引 -->
-      <div class="webdav-section-title">客户端连接指南</div>
+      <div class="webdav-section-title">如何连接（按你的设备选择）</div>
       <div class="webdav-guide" id="webdav-guide">
-        <div class="step"><b>Windows：</b>打开文件资源管理器 → 右键"此电脑" → 映射网络驱动器 → 输入挂载地址 → 勾选"使用其他凭据" → 输入用户名和密码</div>
-        <div class="step"><b>macOS：</b>Finder → 前往 → 连接服务器（<code>Cmd+K</code>）→ 输入挂载地址 → 输入用户名和密码</div>
-        <div class="step"><b>iOS：</b>使用"文件"App → 浏览 → 连接服务器 → 输入挂载地址和凭据</div>
+        <div class="step"><b>Windows：</b>打开文件资源管理器 → 右键"此电脑" → 映射网络驱动器 → 输入服务器地址 → 勾选"使用其他凭据" → 输入用户名和密码</div>
+        <div class="step"><b>macOS：</b>Finder → 前往 → 连接服务器（<code>Cmd+K</code>）→ 输入服务器地址 → 输入用户名和密码</div>
+        <div class="step"><b>iOS：</b>使用"文件"App → 浏览 → 连接服务器 → 输入服务器地址和凭据</div>
         <div class="step"><b>Android：</b>使用支持 WebDAV 的文件管理器（如 Solid Explorer、ES文件浏览器）→ 添加 WebDAV 连接</div>
         <div class="step"><b>跨平台：</b>使用 <code>RaiDrive</code>、<code>Cyberduck</code> 或 <code>WinSCP</code> 等工具连接</div>
       </div>
 
       <!-- 支持的操作 -->
-      <div class="webdav-section-title">支持的 WebDAV 方法</div>
+      <div class="webdav-section-title">支持的操作</div>
       <div class="webdav-methods">
-        <span class="webdav-method-tag">OPTIONS</span>
-        <span class="webdav-method-tag">PROPFIND</span>
-        <span class="webdav-method-tag">GET</span>
-        <span class="webdav-method-tag">HEAD</span>
-        <span class="webdav-method-tag">PUT</span>
-        <span class="webdav-method-tag">DELETE</span>
-        <span class="webdav-method-tag">MKCOL</span>
-        <span class="webdav-method-tag">MOVE</span>
-        <span class="webdav-method-tag">COPY</span>
-        <span class="webdav-method-tag">PROPPATCH</span>
+        <span class="webdav-method-tag">浏览目录</span>
+        <span class="webdav-method-tag">上传</span>
+        <span class="webdav-method-tag">下载</span>
+        <span class="webdav-method-tag">新建文件夹</span>
+        <span class="webdav-method-tag">移动/重命名</span>
+        <span class="webdav-method-tag">复制</span>
+        <span class="webdav-method-tag">删除</span>
       </div>
 
       <!-- 提示 -->
       <div style="margin-top:var(--sp-2); padding:10px 12px; background:var(--c-yellow); border-radius:var(--radius-sm); font-size:12px; line-height:1.6;">
-        提示：WebDAV 密码即你在 Cloudflare Pages 环境变量中配置的 <code style="font-family:var(--font-mono)">WEBDAV_PASS</code>（未设置时使用 <code style="font-family:var(--font-mono)">BASIC_PASS</code>）。密码不会在面板中显示。
+        连接成功后，WebDAV 里的文件和本网盘页面看到的是同一份数据，改动实时同步。
       </div>
     </div>
     <div class="modal-foot">
       <button class="btn btn-ghost btn-sm" data-close>关闭</button>
+      <button class="btn btn-primary btn-sm" id="webdav-copy-all">复制连接信息</button>
     </div>
   </div>
 </div>
@@ -461,6 +499,7 @@
 <!-- Toast -->
 <div class="toast-zone" id="toast-zone"></div>
 
+<script src="/assets/site-user.js" defer></script>
 <script>
 'use strict';
 
@@ -547,13 +586,64 @@ function isPreviewable(name, contentType) {
   return null;
 }
 
+// ---- 连接状态横幅 ----
+function setConnBanner(kind, title, detail, actions) {
+  const banner = $('#conn-banner');
+  const text = $('#conn-text');
+  const acts = $('#conn-actions');
+  if (!kind) {
+    banner.className = 'conn-banner';
+    return;
+  }
+  banner.className = 'conn-banner show ' + kind;
+  text.innerHTML = '';
+  const b = document.createElement('b');
+  b.textContent = title;
+  text.appendChild(b);
+  if (detail) {
+    const span = document.createElement('span');
+    span.textContent = detail;
+    text.appendChild(span);
+  }
+  acts.innerHTML = '';
+  (actions || []).forEach(a => {
+    const btn = document.createElement(a.href ? 'a' : 'button');
+    btn.className = 'btn btn-sm';
+    btn.textContent = a.label;
+    if (a.href) btn.href = a.href;
+    else btn.onclick = a.onClick;
+    acts.appendChild(btn);
+  });
+}
+
+// ---- 友好错误映射：把 HTTP 状态/服务端错误翻译成人话 ----
+function friendlyError(status, serverMsg) {
+  if (status === 401 || serverMsg === 'auth_required') {
+    return { kind: 'auth', msg: '登录状态已失效，请重新登录后再操作。' };
+  }
+  if (status === 403) return { kind: 'error', msg: '没有权限执行此操作。' };
+  if (status === 404) return { kind: 'error', msg: '文件或文件夹不存在，可能已被移动或删除。' };
+  if (status === 413) return { kind: 'error', msg: '文件太大，超出了上传限制。' };
+  if (status === 429) return { kind: 'error', msg: '操作太频繁，请稍等片刻再试。' };
+  if (status === 503 || serverMsg === 'r2_unbound') {
+    return { kind: 'fatal', msg: '网盘存储尚未配置（需要绑定 R2 存储桶），请联系站长处理。' };
+  }
+  if (status >= 500) return { kind: 'error', msg: '服务器出了点问题，请稍后重试。' };
+  if (serverMsg) return { kind: 'error', msg: serverMsg };
+  return { kind: 'error', msg: '操作失败（错误码 ' + status + '），请重试。' };
+}
+
 // ---- API 调用 ----
 async function apiList(path) {
   const url = '/netdisk/api/list?path=' + encodeURIComponent(path);
-  const res = await fetch(url);
+  const res = await fetch(url, { credentials: 'include' });
   if (!res.ok) {
-    if (res.status === 401) { throw new Error('认证失败，请刷新页面重新登录'); }
-    throw new Error('列表加载失败: ' + res.status);
+    let serverMsg = '';
+    try { const j = await res.json(); serverMsg = j.error || j.message || ''; } catch {}
+    const fe = friendlyError(res.status, serverMsg);
+    const err = new Error(fe.msg);
+    err.kind = fe.kind;
+    throw err;
   }
   return res.json();
 }
@@ -573,10 +663,15 @@ async function apiUpload(path, file, onProgress) {
       if (xhr.status >= 200 && xhr.status < 300) {
         try { resolve(JSON.parse(xhr.responseText)); } catch { resolve({}); }
       } else {
-        reject(new Error('上传失败: ' + xhr.status));
+        let serverMsg = '';
+        try { const j = JSON.parse(xhr.responseText); serverMsg = j.error || j.message || ''; } catch {}
+        const fe = friendlyError(xhr.status, serverMsg);
+        const err = new Error(fe.msg);
+        err.kind = fe.kind;
+        reject(err);
       }
     };
-    xhr.onerror = () => reject(new Error('网络错误'));
+    xhr.onerror = () => reject(new Error('网络连接异常，请检查网络后重试。'));
     const fd = new FormData();
     fd.append('file', file);
     xhr.send(fd);
@@ -584,16 +679,19 @@ async function apiUpload(path, file, onProgress) {
 }
 
 async function apiCall(url, method = 'GET', body = null) {
-  const opts = { method, headers: {} };
+  const opts = { method, headers: {}, credentials: 'include' };
   if (body) {
     opts.headers['Content-Type'] = 'application/json';
     opts.body = JSON.stringify(body);
   }
   const res = await fetch(url, opts);
   if (!res.ok) {
-    let msg = '请求失败: ' + res.status;
-    try { const j = await res.json(); if (j.error) msg = j.error; } catch {}
-    throw new Error(msg);
+    let serverMsg = '';
+    try { const j = await res.json(); serverMsg = j.error || j.message || ''; } catch {}
+    const fe = friendlyError(res.status, serverMsg);
+    const err = new Error(fe.msg);
+    err.kind = fe.kind;
+    throw err;
   }
   const ct = res.headers.get('Content-Type') || '';
   if (ct.includes('application/json')) return res.json();
@@ -609,10 +707,29 @@ async function loadList() {
   try {
     const data = await apiList(currentPath);
     if (!data) return;
+    setConnBanner(null); // 连接正常，收起横幅
     renderBreadcrumb(data.path || '');
     renderTable(data.items || []);
   } catch (e) {
-    tbody.innerHTML = `<tr><td colspan="5" class="nd-loading" style="color:var(--c-coral)">${e.message}</td></tr>`;
+    if (e.kind === 'auth') {
+      setConnBanner('warn', '需要登录', e.msg, [
+        { label: '去登录', href: '/auth?next=' + encodeURIComponent('/netdisk') },
+        { label: '重试', onClick: loadList },
+      ]);
+    } else if (e.kind === 'fatal') {
+      setConnBanner('error', '网盘暂不可用', e.msg, [
+        { label: '重试', onClick: loadList },
+      ]);
+    } else {
+      setConnBanner('error', '加载失败', e.msg, [
+        { label: '重试', onClick: loadList },
+      ]);
+    }
+    tbody.innerHTML = `<tr><td colspan="5" class="nd-empty">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <div>${escapeHtml(e.message)}</div>
+      <div style="margin-top:12px"><button class="btn btn-sm" onclick="loadList()">重新加载</button></div>
+    </td></tr>`;
   }
 }
 
@@ -689,7 +806,8 @@ function renderTable(items) {
   if (items.length === 0) {
     tbody.innerHTML = `<tr><td colspan="5" class="nd-empty">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin:0 auto"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
-      <div>此文件夹为空</div>
+      <div style="font-weight:700;color:var(--c-ink)">这里还是空的</div>
+      <div style="margin-top:6px">把文件拖到页面任意位置即可上传，或点击左上角「上传文件」</div>
     </td></tr>`;
     return;
   }
@@ -1165,6 +1283,8 @@ async function handleFiles(files) {
   const fileArr = Array.from(files);
   $('#upload-count').textContent = `(0/${fileArr.length})`;
 
+  let okCount = 0, failCount = 0, dedupCount = 0;
+
   for (let i = 0; i < fileArr.length; i++) {
     const file = fileArr[i];
     const itemEl = document.createElement('div');
@@ -1173,20 +1293,43 @@ async function handleFiles(files) {
     listEl.appendChild(itemEl);
 
     try {
-      await apiUpload(currentPath, file, (p) => {
+      const result = await apiUpload(currentPath, file, (p) => {
         itemEl.querySelector('.up-bar-fill').style.width = Math.round(p * 100) + '%';
       });
       itemEl.querySelector('.up-bar-fill').style.width = '100%';
       itemEl.style.color = 'var(--c-teal)';
+      okCount++;
+      // 服务端内容去重命中：相同内容直接复用，无需重复上传
+      const first = result && result.uploaded && result.uploaded[0];
+      if (first && first.deduplicated) {
+        dedupCount++;
+        itemEl.querySelector('div').textContent = file.name + '（秒传：内容已存在，直接复用）';
+      }
+      if (first && first.error) {
+        okCount--; failCount++;
+        itemEl.style.color = 'var(--c-coral)';
+        itemEl.querySelector('div').textContent = file.name + ' - 失败: ' + first.error;
+      }
     } catch (e) {
+      failCount++;
       itemEl.style.color = 'var(--c-coral)';
       itemEl.querySelector('div').textContent = file.name + ' - 失败: ' + e.message;
+      if (e.kind === 'auth' || e.kind === 'fatal') {
+        // 登录失效或存储未配置：后续文件不必再试
+        setConnBanner(e.kind === 'auth' ? 'warn' : 'error', e.kind === 'auth' ? '需要登录' : '网盘暂不可用', e.message,
+          e.kind === 'auth' ? [{ label: '去登录', href: '/auth?next=' + encodeURIComponent('/netdisk') }] : []);
+        break;
+      }
     }
     $('#upload-count').textContent = `(${i + 1}/${fileArr.length})`;
   }
 
-  toast('上传完成');
-  setTimeout(() => progressEl.classList.remove('show'), 2000);
+  if (failCount === 0) {
+    toast(dedupCount > 0 ? `上传完成（${okCount} 个，其中 ${dedupCount} 个秒传）` : `上传完成（${okCount} 个文件）`);
+    setTimeout(() => progressEl.classList.remove('show'), 2000);
+  } else {
+    toast(`上传结束：成功 ${okCount} 个，失败 ${failCount} 个`, 'error');
+  }
   loadList();
 }
 
@@ -1218,14 +1361,21 @@ function openWebDAVPanel() {
 }
 
 function renderWebDAVPanel(cfg) {
-  // 挂载地址
-  var webdavUrl = cfg.webdavUrl ? (location.origin + cfg.webdavUrl) : '未启用（需绑定 R2 存储）';
+  var enabled = !!cfg.webdavUrl;
+  $('#webdav-disabled-note').style.display = enabled ? 'none' : '';
+
+  // 服务器地址
+  var webdavUrl = enabled ? (location.origin + cfg.webdavUrl) : '未启用';
   $('#webdav-url').textContent = webdavUrl;
+  $('#webdav-copy-url').disabled = !enabled;
 
   // 鉴权状态
   var badge = $('#webdav-auth-badge');
-  if (cfg.webdavAuthRequired) {
-    badge.textContent = '需要登录';
+  if (!enabled) {
+    badge.textContent = '未启用';
+    badge.className = 'webdav-badge off';
+  } else if (cfg.webdavAuthRequired) {
+    badge.textContent = '需要账号密码';
     badge.className = 'webdav-badge on';
   } else {
     badge.textContent = '免密访问';
@@ -1233,13 +1383,31 @@ function renderWebDAVPanel(cfg) {
   }
 
   // 用户名
-  if (cfg.webdavUser) {
+  if (enabled && cfg.webdavUser) {
     $('#webdav-username').textContent = cfg.webdavUser;
     $('#webdav-user-row').style.display = '';
   } else {
     $('#webdav-user-row').style.display = 'none';
   }
+
+  // 密码说明（不显示密码本身）
+  var hint = $('#webdav-pass-hint');
+  if (!enabled) {
+    hint.textContent = '-';
+  } else if (cfg.webdavAuthRequired) {
+    hint.textContent = '站长在环境变量 WEBDAV_PASS（或 BASIC_PASS）中设置的密码';
+  } else {
+    hint.textContent = '无需密码';
+  }
 }
+
+$('#webdav-copy-all').onclick = function () {
+  if (!webdavConfig || !webdavConfig.webdavUrl) { toast('WebDAV 未启用', 'error'); return; }
+  var lines = ['服务器地址: ' + location.origin + webdavConfig.webdavUrl];
+  if (webdavConfig.webdavUser) lines.push('用户名: ' + webdavConfig.webdavUser);
+  lines.push(webdavConfig.webdavAuthRequired ? '密码: 站长设置的 WEBDAV_PASS / BASIC_PASS' : '密码: 无需密码');
+  copyWebDAVText(lines.join('\n'), this);
+};
 
 function copyWebDAVText(text, btn) {
   if (navigator.clipboard) {

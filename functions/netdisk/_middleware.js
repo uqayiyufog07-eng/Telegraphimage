@@ -1,9 +1,16 @@
 import { basicAuthentication, basicAuthChallengeResponse, unauthorizedResponse } from '../utils/auth.js';
-import { isEmptyBinding } from '../utils/http.js';
+import { isEmptyBinding, jsonResponse } from '../utils/http.js';
+import { authAvailable, getSessionUser } from '../utils/users.js';
 
-// 网盘鉴权中间件：复用 BASIC_USER/BASIC_PASS（与后台 /admin 一致）。
-// - /netdisk 页面：无需 img_r2 检查（让前端展示配置提示），但需 BASIC 鉴权（若配置）
+// 网盘鉴权中间件。
+// - /netdisk 页面：无需 img_r2 检查（让前端展示配置提示）
 // - /netdisk/api/*：强依赖 img_r2，未绑定返回 503
+//
+// 访问优先级（当配置了 BASIC_USER/BASIC_PASS 时）：
+//   1. 已登录的用户会话（wb_session Cookie）→ 放行，免密使用网盘
+//   2. Authorization Basic 凭证匹配        → 放行（兼容 API/WebDAV 客户端）
+//   3. 页面请求 → 跳转 /auth 登录页；API 请求 → 401 JSON（前端据此提示登录）
+//   未启用用户系统（无 img_url KV）时回退为浏览器 BASIC 弹窗。
 async function errorHandling(context) {
   try {
     return await context.next();
@@ -20,31 +27,52 @@ async function authentication(context) {
 
   // API 路由强依赖 R2
   if (isApiRoute && isEmptyBinding(env.img_r2)) {
-    return new Response(
-      JSON.stringify({ error: 'Netdisk requires R2 bucket binding (img_r2). Please bind it in Pages settings.' }),
-      { status: 503, headers: { 'Content-Type': 'application/json' } }
+    return jsonResponse(
+      { error: 'r2_unbound', message: '网盘功能未启用：需要绑定名为 img_r2 的 R2 存储桶。' },
+      { status: 503 }
     );
   }
 
-  // BASIC 鉴权
+  // 未配置访问控制：公开访问
   if (isEmptyBinding(env.BASIC_USER)) {
     return context.next();
   }
 
-  if (!request.headers.has('Authorization')) {
-    return basicAuthChallengeResponse();
+  // 1. 用户会话
+  if (authAvailable(env)) {
+    const session = await getSessionUser(request, env);
+    if (session) {
+      context.data.user = session;
+      return context.next();
+    }
   }
 
-  const credentials = basicAuthentication(request);
-  if (credentials instanceof Response) {
-    return credentials;
-  }
-
-  if (env.BASIC_USER !== credentials.user || env.BASIC_PASS !== credentials.pass) {
+  // 2. Basic 凭证（API 客户端 / WebDAV 场景）
+  if (request.headers.has('Authorization')) {
+    const credentials = basicAuthentication(request);
+    if (credentials instanceof Response) {
+      return credentials;
+    }
+    if (env.BASIC_USER === credentials.user && env.BASIC_PASS === credentials.pass) {
+      return context.next();
+    }
     return unauthorizedResponse('Invalid credentials.');
   }
 
-  return context.next();
+  // 3. 未认证
+  if (isApiRoute) {
+    return jsonResponse(
+      { error: 'auth_required', message: '登录状态已失效，请重新登录后再操作。' },
+      { status: 401 }
+    );
+  }
+
+  if (authAvailable(env)) {
+    const next = encodeURIComponent(url.pathname + url.search);
+    return Response.redirect(`${url.origin}/auth?next=${next}`, 302);
+  }
+
+  return basicAuthChallengeResponse();
 }
 
 export const onRequest = [errorHandling, authentication];

@@ -1,6 +1,7 @@
 import { isEmptyBinding, jsonResponse } from '../utils/http.js';
 import { isShortUrlsEnabled } from '../utils/shortlink.js';
 import { getSetupStatus } from '../utils/setup-status.js';
+import { authAvailable, registrationOpen } from '../utils/users.js';
 
 // Public, non-sensitive site configuration for the frontend. Any static UI can
 // read this once at startup instead of the deployment having to edit HTML.
@@ -15,6 +16,9 @@ export async function onRequestGet(context) {
         enableShortUrls: isShortUrlsEnabled(env),
         uploadRequiresAuth: !isEmptyBinding(env.UPLOAD_BASIC_USER) && !isEmptyBinding(env.UPLOAD_BASIC_PASS),
         showAdminEntry: env.HIDE_ADMIN_ENTRY !== 'true',
+        // 用户系统（注册/登录）可用性
+        authEnabled: authAvailable(env),
+        registrationOpen: registrationOpen(env),
         // Netdisk & WebDAV availability (both require R2 binding)
         netdiskEnabled: !!env.img_r2,
         webdavEnabled: !!env.img_r2,

@@ -6,7 +6,7 @@
 <meta name="robots" content="noindex">
 <link rel="icon" type="image/x-icon" href="/favicon.ico">
 <link rel="stylesheet" href="/assets/theme.css">
-<title>Dashboard | 老钱303的云上空间</title>
+<title>管理后台</title>
 <style>
   /* ---- page frame ---- */
   .wrap { max-width: var(--maxw); margin: 0 auto; padding: var(--sp-3); }
@@ -23,34 +23,56 @@
   .topbar .brand-mini .logo-badge .icon { width: 20px; height: 20px; }
   .topbar nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
+  /* ---- 登录卡片 ---- */
+  .login-wrap { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+  .login-card { width: 100%; max-width: 400px; }
+  .login-card h1 { font-size: 22px; margin: 0 0 6px; }
+  .login-card .sub { color: var(--c-ink-soft); font-size: 14px; margin-bottom: var(--sp-3); }
+  .login-card .field { margin-bottom: var(--sp-2); }
+  .login-card label { display: block; font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+  .login-error {
+    display: none; padding: 10px 12px; margin-bottom: var(--sp-2);
+    background: var(--c-coral); color: var(--c-white); font-weight: 600; font-size: 14px;
+    border: var(--bd-thin) solid var(--c-ink); border-radius: var(--radius-sm);
+  }
+  .login-error.show { display: block; animation: pop-in var(--dur-mid) var(--ease-pop) both; }
+
+  /* ---- 选项卡 ---- */
+  .tabs { display: flex; gap: var(--sp-1); margin-bottom: var(--sp-3); overflow-x: auto; }
+  .tabs .tab-btn { white-space: nowrap; }
+  .tabs .tab-btn[aria-selected="true"] { background: var(--c-blue); color: var(--c-white); }
+  .tab-panel[hidden] { display: none; }
+
+  /* ---- 概览 ---- */
+  .ov-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--sp-2); margin-bottom: var(--sp-3); }
+  .ov-card { padding: var(--sp-2) var(--sp-3); border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow); background: var(--c-white); }
+  .ov-card .ov-label { font-size: 13px; font-weight: 700; color: var(--c-ink-soft); }
+  .ov-card .ov-value { font-family: var(--font-head); font-weight: 700; font-size: 20px; margin-top: 4px; display: flex; align-items: center; gap: 8px; }
+  .ov-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid var(--c-ink); flex: none; }
+  .ov-dot.ok { background: var(--c-teal); }
+  .ov-dot.warn { background: var(--c-yellow); }
+  .ov-dot.err { background: var(--c-coral); }
+  .ov-dot.off { background: var(--c-paper-warm); }
+  .problem-list { display: grid; gap: 8px; }
+  .problem-item { padding: 10px 12px; border: var(--bd-thin) solid var(--c-ink); border-radius: var(--radius-sm); font-size: 14px; line-height: 1.6; }
+  .problem-item.error { background: var(--c-coral); color: var(--c-white); }
+  .problem-item.warning { background: var(--c-yellow); }
+  .problem-item.info { background: var(--c-paper-warm); }
+  .ov-ok { padding: var(--sp-3); background: var(--c-teal); color: var(--c-white); border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow-sm); font-weight: 700; }
+
   /* ---- stats bento ---- */
-  .stats {
-    display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2);
-    margin-bottom: var(--sp-3);
-  }
-  .stat {
-    position: relative; overflow: hidden;
-    padding: var(--sp-2) var(--sp-3);
-    border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow);
-  }
-  .stat .num {
-    font-family: var(--font-head); font-weight: 700;
-    font-size: clamp(28px, 4vw, 44px); line-height: 1.1; letter-spacing: -.02em;
-  }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-2); margin-bottom: var(--sp-3); }
+  .stat { position: relative; overflow: hidden; padding: var(--sp-2) var(--sp-3); border: var(--bd); border-radius: var(--radius); box-shadow: var(--shadow); }
+  .stat .num { font-family: var(--font-head); font-weight: 700; font-size: clamp(28px, 4vw, 44px); line-height: 1.1; letter-spacing: -.02em; }
   .stat .lbl { font-size: 13px; font-weight: 700; margin-top: 2px; }
   .stat-total { background: var(--c-yellow); }
   .stat-white { background: var(--c-teal); }
   .stat-block { background: var(--c-coral); }
 
   /* ---- toolbar ---- */
-  .toolbar {
-    display: flex; gap: var(--sp-2); align-items: center; margin-bottom: var(--sp-3);
-  }
+  .toolbar { display: flex; gap: var(--sp-2); align-items: center; margin-bottom: var(--sp-3); }
   .toolbar .search-box { position: relative; flex: 1; max-width: 420px; }
-  .toolbar .search-box .icon {
-    position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
-    width: 18px; height: 18px; color: var(--c-ink-soft); pointer-events: none;
-  }
+  .toolbar .search-box .icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; color: var(--c-ink-soft); pointer-events: none; }
   .toolbar .search-box .input { padding-left: 40px; }
 
   /* ---- table ---- */
@@ -70,78 +92,155 @@
   .cell-actions { white-space: nowrap; text-align: right; }
   .cell-actions .btn { margin-left: 6px; }
   .empty-row td { text-align: center; padding: var(--sp-4); color: var(--c-ink-soft); font-weight: 500; }
-
   .more-zone { display: flex; justify-content: center; margin-top: var(--sp-3); }
 
+  /* ---- 用户表 ---- */
+  .user-name { font-weight: 700; font-family: var(--font-head); }
+  .user-meta { font-family: var(--font-mono); font-size: 12px; color: var(--c-ink-soft); }
+
+  /* ---- 模态 ---- */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 150; background: rgba(20,20,20,.5);
+    display: none; align-items: center; justify-content: center; padding: var(--sp-2);
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: var(--c-white); border: var(--bd); border-radius: var(--radius);
+    box-shadow: var(--shadow-lg); max-width: 420px; width: 100%;
+    animation: pop-in var(--dur-mid) var(--ease-pop) both;
+  }
+  .modal-head { padding: var(--sp-2) var(--sp-3); border-bottom: var(--bd); background: var(--c-yellow); font-family: var(--font-head); font-weight: 700; }
+  .modal-body { padding: var(--sp-3); }
+  .modal-foot { display: flex; gap: var(--sp-1); justify-content: flex-end; padding: var(--sp-2) var(--sp-3); border-top: var(--bd); background: var(--c-paper); }
+
   /* ---- lightbox ---- */
-  .lightbox {
-    position: fixed; inset: 0; z-index: 200; display: none;
-    align-items: center; justify-content: center; padding: var(--sp-3);
-    background: rgba(20, 20, 20, .72);
-  }
+  .lightbox { position: fixed; inset: 0; z-index: 200; display: none; align-items: center; justify-content: center; padding: var(--sp-3); background: rgba(20, 20, 20, .72); }
   .lightbox.open { display: flex; }
-  .lightbox img {
-    max-width: 92vw; max-height: 88vh;
-    border: var(--bd); border-radius: var(--radius); box-shadow: 8px 8px 0 rgba(0,0,0,.45);
-    background: var(--c-white);
-  }
+  .lightbox img { max-width: 92vw; max-height: 88vh; border: var(--bd); border-radius: var(--radius); box-shadow: 8px 8px 0 rgba(0,0,0,.45); background: var(--c-white); }
 
   @media (max-width: 760px) {
     .stats { grid-template-columns: 1fr; }
     .cell-preview img, .cell-preview video { width: 88px; height: 60px; }
     .topbar .brand-mini span.txt { display: none; }
+    .cell-actions .btn { margin-left: 2px; }
   }
 </style>
 </head>
 <body>
 <header class="topbar">
-  <a class="brand-mini" href="/admin.html">
+  <a class="brand-mini" href="/admin">
     <span class="logo-badge" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.6"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.6"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.6"/></svg></span>
-    <span class="txt">Dashboard</span>
+    <span class="txt">管理后台</span>
   </a>
-  <nav>
+  <nav id="topnav" hidden>
     <a class="btn btn-sm" href="/"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 10.5L12 3l9 7.5"/><path d="M5 9.5V21h14V9.5"/></svg><span>首页</span></a>
     <a class="btn btn-sm" href="/imgbed"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg><span>图床</span></a>
     <a class="btn btn-sm" id="netdisk-link" href="/netdisk"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg><span>网盘</span></a>
-    <button type="button" class="btn btn-sm btn-danger" id="logout-btn" hidden><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg><span>退出登录</span></button>
+    <button type="button" class="btn btn-sm btn-danger" id="logout-btn" hidden><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5M21 12H9"/></svg><span>退出</span></button>
   </nav>
 </header>
 
-<main class="wrap">
-  <section class="stats" aria-label="统计">
-    <div class="stat stat-total"><div class="num" id="stat-total">0</div><div class="lbl">记录总数（已加载）</div></div>
-    <div class="stat stat-white"><div class="num" id="stat-white">0</div><div class="lbl">白名单</div></div>
-    <div class="stat stat-block"><div class="num" id="stat-block">0</div><div class="lbl">黑名单</div></div>
-  </section>
-
-  <div class="toolbar">
-    <div class="search-box">
-      <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
-      <input class="input" id="search-input" type="search" placeholder="输入关键字搜索（按文件名前缀）" aria-label="搜索记录">
-    </div>
-    <button type="button" class="btn btn-icon" id="refresh-btn" title="刷新列表" aria-label="刷新列表"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg></button>
-  </div>
-
-  <div class="table-wrap">
-    <table class="table">
-      <thead>
-        <tr>
-          <th>name</th>
-          <th style="text-align:center">preview</th>
-          <th>data</th>
-          <th style="text-align:right">操作</th>
-        </tr>
-      </thead>
-      <tbody id="tbody">
-        <tr class="empty-row"><td colspan="4">加载中…</td></tr>
-      </tbody>
-    </table>
-  </div>
-
-  <div class="more-zone">
-    <button type="button" class="btn btn-primary" id="load-more" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5v12m0 0l-4.75-4.75M12 16.5l4.75-4.75M4 20h16"/></svg><span>加载更多</span></button>
+<!-- 登录视图 -->
+<main class="wrap login-wrap" id="view-login" hidden>
+  <div class="card card-pad login-card">
+    <h1>管理员登录</h1>
+    <p class="sub">使用部署时在环境变量中配置的 BASIC_USER / BASIC_PASS</p>
+    <div class="login-error" id="login-error" role="alert"></div>
+    <form id="login-form">
+      <div class="field">
+        <label for="login-user">用户名</label>
+        <input class="input" id="login-user" autocomplete="username" required>
+      </div>
+      <div class="field">
+        <label for="login-pass">密码</label>
+        <input class="input" id="login-pass" type="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn btn-primary" type="submit" style="width:100%" id="login-submit">登 录</button>
+    </form>
   </div>
 </main>
+
+<!-- 面板视图 -->
+<main class="wrap" id="view-panel" hidden>
+  <div class="tabs" role="tablist">
+    <button class="btn btn-sm tab-btn" role="tab" id="tab-overview" aria-selected="true">系统概览</button>
+    <button class="btn btn-sm tab-btn" role="tab" id="tab-images" aria-selected="false">图片管理</button>
+    <button class="btn btn-sm tab-btn" role="tab" id="tab-users" aria-selected="false">用户管理</button>
+  </div>
+
+  <!-- 系统概览 -->
+  <section class="tab-panel" id="panel-overview" role="tabpanel">
+    <div class="ov-grid" id="ov-grid"></div>
+    <h2 style="font-size:17px; margin:0 0 var(--sp-2); font-family:var(--font-head)">部署检查</h2>
+    <div id="ov-problems"><div class="problem-item info">检查中…</div></div>
+  </section>
+
+  <!-- 图片管理 -->
+  <section class="tab-panel" id="panel-images" role="tabpanel" hidden>
+    <div class="stats" aria-label="统计">
+      <div class="stat stat-total"><div class="num" id="stat-total">0</div><div class="lbl">记录总数（已加载）</div></div>
+      <div class="stat stat-white"><div class="num" id="stat-white">0</div><div class="lbl">白名单</div></div>
+      <div class="stat stat-block"><div class="num" id="stat-block">0</div><div class="lbl">黑名单</div></div>
+    </div>
+    <div class="toolbar">
+      <div class="search-box">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input class="input" id="search-input" type="search" placeholder="输入关键字搜索（按文件名前缀）" aria-label="搜索记录">
+      </div>
+      <button type="button" class="btn btn-icon" id="refresh-btn" title="刷新列表" aria-label="刷新列表"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg></button>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>name</th><th style="text-align:center">preview</th><th>data</th><th style="text-align:right">操作</th></tr>
+        </thead>
+        <tbody id="tbody">
+          <tr class="empty-row"><td colspan="4">加载中…</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="more-zone">
+      <button type="button" class="btn btn-primary" id="load-more" hidden><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.5v12m0 0l-4.75-4.75M12 16.5l4.75-4.75M4 20h16"/></svg><span>加载更多</span></button>
+    </div>
+  </section>
+
+  <!-- 用户管理 -->
+  <section class="tab-panel" id="panel-users" role="tabpanel" hidden>
+    <div class="toolbar">
+      <div class="search-box">
+        <svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.35-4.35"/></svg>
+        <input class="input" id="user-search-input" type="search" placeholder="按用户名筛选（本地）" aria-label="筛选用户">
+      </div>
+      <button type="button" class="btn btn-icon" id="user-refresh-btn" title="刷新用户列表" aria-label="刷新用户列表"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg></button>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>用户名</th><th>注册时间</th><th>最近登录</th><th>状态</th><th style="text-align:right">操作</th></tr>
+        </thead>
+        <tbody id="user-tbody">
+          <tr class="empty-row"><td colspan="5">加载中…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+</main>
+
+<!-- 重置密码模态 -->
+<div class="modal-overlay" id="modal-reset">
+  <div class="modal">
+    <div class="modal-head">重置密码</div>
+    <div class="modal-body">
+      <p style="margin-top:0; font-size:14px;">为用户 <b id="reset-username"></b> 设置新密码：</p>
+      <input class="input" id="reset-password" type="text" placeholder="至少 8 个字符" autocomplete="off">
+      <p style="font-size:12px; color:var(--c-ink-soft); margin-bottom:0;">重置后旧密码立即失效，请将新密码线下告知用户。</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="reset-cancel">取消</button>
+      <button class="btn btn-primary btn-sm" id="reset-confirm">确认重置</button>
+    </div>
+  </div>
+</div>
 
 <div class="lightbox" id="lightbox" role="dialog" aria-label="图片预览">
   <img id="lightbox-img" alt="预览大图">
@@ -157,47 +256,175 @@
   var BLOCK_ICON = '<svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M5.8 5.8l12.4 12.4"/></svg>';
   var TRASH_ICON = '<svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M3.75 6.75h16.5M9 6.75V5A1.5 1.5 0 0 1 10.5 3.5h3A1.5 1.5 0 0 1 15 5v1.75M5.75 6.75l.8 12.1A2 2 0 0 0 8.55 20.7h6.9a2 2 0 0 0 2-1.85l.8-12.1"/></svg>';
 
-  var tbody = document.getElementById('tbody');
-  var loadMoreBtn = document.getElementById('load-more');
-  var searchInput = document.getElementById('search-input');
-  var toast = document.getElementById('toast');
+  var $ = function (id) { return document.getElementById(id); };
+  var toast = $('toast');
   var toastTimer = null;
 
-  var rows = [];            // [{ name, metadata }]
+  // ================= 管理员凭证（BASIC，存 sessionStorage） =================
+  var CRED_KEY = 'admin_basic_creds';
+
+  function getCreds() {
+    try { return JSON.parse(sessionStorage.getItem(CRED_KEY) || 'null'); } catch { return null; }
+  }
+  function setCreds(c) { sessionStorage.setItem(CRED_KEY, JSON.stringify(c)); }
+  function clearCreds() { sessionStorage.removeItem(CRED_KEY); }
+
+  // 统一 API 请求：自动附带管理员凭证；401 时回登录视图
+  function api(url, opts) {
+    opts = opts || {};
+    opts.credentials = 'include';
+    opts.headers = opts.headers || {};
+    var creds = getCreds();
+    if (creds && !opts.headers.Authorization) {
+      opts.headers.Authorization = 'Basic ' + btoa(unescape(encodeURIComponent(creds.user + ':' + creds.pass)));
+    }
+    return fetch(url, opts).then(function (res) {
+      if (res.status === 401) {
+        clearCreds();
+        showLogin('登录状态已失效，请重新登录。');
+        throw new Error('unauthorized');
+      }
+      return res;
+    });
+  }
+
+  // ================= 视图切换 =================
+  function showLogin(message) {
+    $('view-login').hidden = false;
+    $('view-panel').hidden = true;
+    $('topnav').hidden = true;
+    var err = $('login-error');
+    if (message) { err.textContent = message; err.classList.add('show'); }
+    else err.classList.remove('show');
+  }
+
+  function showPanel() {
+    $('view-login').hidden = true;
+    $('view-panel').hidden = false;
+    $('topnav').hidden = false;
+    $('logout-btn').hidden = false;
+    loadOverview();
+    loadList(true);
+    loadUsers();
+  }
+
+  // ================= 登录流程 =================
+  $('login-form').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var user = $('login-user').value.trim();
+    var pass = $('login-pass').value;
+    if (!user || !pass) return;
+    var btn = $('login-submit');
+    btn.disabled = true;
+    btn.textContent = '验证中…';
+    setCreds({ user: user, pass: pass });
+    api('./api/manage/check')
+      .then(function (r) { return r.text(); })
+      .then(function (result) {
+        if (result === 'true' || result === 'Not using basic auth.') {
+          showPanel();
+        } else {
+          clearCreds();
+          showLogin('用户名或密码不正确。');
+        }
+      })
+      .catch(function (err) {
+        if (!err || err.message !== 'unauthorized') {
+          clearCreds();
+          showLogin('网络异常，请稍后重试。');
+        }
+      })
+      .then(function () { btn.disabled = false; btn.textContent = '登 录'; });
+  });
+
+  $('logout-btn').addEventListener('click', function () {
+    clearCreds();
+    // 同时失效浏览器可能缓存的 BASIC 凭证
+    fetch('./api/manage/logout', { credentials: 'include' }).finally(function () {
+      showLogin();
+    });
+  });
+
+  // 启动：探测鉴权状态
+  (function boot() {
+    api('./api/manage/check')
+      .then(function (r) { return r.text(); })
+      .then(function (result) {
+        if (result === 'true' || result === 'Not using basic auth.') showPanel();
+        else showLogin();
+      })
+      .catch(function (err) {
+        if (err && err.message === 'unauthorized') return; // showLogin 已被 api() 触发
+        showLogin('无法连接服务器，请检查网络后刷新。');
+      });
+  })();
+
+  // ================= 选项卡 =================
+  var tabs = ['overview', 'images', 'users'];
+  tabs.forEach(function (name) {
+    $('tab-' + name).addEventListener('click', function () { selectTab(name); });
+  });
+  function selectTab(name) {
+    tabs.forEach(function (t) {
+      $('tab-' + t).setAttribute('aria-selected', t === name ? 'true' : 'false');
+      $('panel-' + t).hidden = t !== name;
+    });
+    if (name === 'overview') loadOverview();
+    if (name === 'users') loadUsers();
+  }
+
+  // ================= 系统概览 =================
+  function ovCard(label, value, dot) {
+    return '<div class="ov-card"><div class="ov-label">' + label + '</div>' +
+      '<div class="ov-value"><span class="ov-dot ' + dot + '"></span>' + value + '</div></div>';
+  }
+
+  function loadOverview() {
+    fetch('/api/config').then(function (r) { return r.json(); }).then(function (cfg) {
+      var s = cfg.setup || {};
+      var cards = [];
+      cards.push(ovCard('图片存储', cfg.storage.default === 'r2' ? 'R2' : 'Telegram',
+        s.storage === 'ok' ? 'ok' : 'err'));
+      cards.push(ovCard('后台数据 (KV)', s.dashboard === 'ok' ? '已绑定' : '未绑定',
+        s.dashboard === 'ok' ? 'ok' : 'off'));
+      cards.push(ovCard('网盘 / WebDAV', s.netdisk === 'ok' ? '已启用' : '未启用',
+        s.netdisk === 'ok' ? 'ok' : 'off'));
+      cards.push(ovCard('图片审查', ({ none: '关闭', 'cloudflare-ai': 'Workers AI', moderatecontent: 'ModerateContent' })[s.moderation] || '配置异常',
+        s.moderation === 'none' ? 'off' : (String(s.moderation).indexOf('missing') > -1 || s.moderation === 'unknown-provider' ? 'warn' : 'ok')));
+      cards.push(ovCard('用户系统', cfg.authEnabled ? (cfg.registrationOpen ? '已启用 · 开放注册' : '已启用 · 关闭注册') : '未启用',
+        cfg.authEnabled ? 'ok' : 'off'));
+      cards.push(ovCard('短链接', cfg.enableShortUrls ? '已启用' : '未启用', cfg.enableShortUrls ? 'ok' : 'off'));
+      $('ov-grid').innerHTML = cards.join('');
+
+      var box = $('ov-problems');
+      if (!cfg.problems || !cfg.problems.length) {
+        box.innerHTML = '<div class="ov-ok">一切正常，部署检查全部通过。</div>';
+      } else {
+        box.innerHTML = '<div class="problem-list">' + cfg.problems.map(function (p) {
+          return '<div class="problem-item ' + p.severity + '">' + escapeHtml(p.message) + '</div>';
+        }).join('') + '</div>';
+      }
+
+      if (!cfg.netdiskEnabled) {
+        var nd = $('netdisk-link');
+        if (nd) nd.remove();
+      }
+    }).catch(function () {
+      $('ov-problems').innerHTML = '<div class="problem-item error">配置加载失败，请检查网络后刷新。</div>';
+    });
+  }
+
+  // ================= 图片管理 =================
+  var tbody = $('tbody');
+  var loadMoreBtn = $('load-more');
+  var searchInput = $('search-input');
+
+  var rows = [];
   var nextCursor = null;
   var search = '';
   var searchTimer = null;
   var loading = false;
 
-  var OPTS = { method: 'GET', redirect: 'follow', credentials: 'include' };
-
-  // Hide netdisk entry when R2 is not bound
-  fetch('/api/config').then(function (r) { return r.json(); }).then(function (cfg) {
-    if (!cfg.netdiskEnabled) {
-      var nd = document.getElementById('netdisk-link');
-      if (nd) nd.remove();
-    }
-  }).catch(function () {});
-
-  // ---- auth check ----
-  fetch('./api/manage/check', OPTS)
-    .then(function (r) { return r.text(); })
-    .then(function (result) {
-      if (result === 'true') {
-        document.getElementById('logout-btn').hidden = false;
-      } else if (result === 'Not using basic auth.') {
-        // no auth configured — stay
-      } else {
-        window.location.href = './api/manage/login';
-      }
-    })
-    .catch(function () { alert('An error occurred while synchronizing data with the server, please check the network connection'); });
-
-  document.getElementById('logout-btn').addEventListener('click', function () {
-    window.location.href = './api/manage/logout';
-  });
-
-  // ---- list loading ----
   function listUrl() {
     var base = './api/manage/list?limit=100';
     if (search) base += '&prefix=' + encodeURIComponent(search);
@@ -215,29 +442,19 @@
     var url = listUrl();
     if (nextCursor) url += '&cursor=' + encodeURIComponent(nextCursor);
 
-    fetch(url, OPTS)
-      .then(function (r) {
-        if (r.status === 401) {
-          alert('请先登录');
-          window.location.href = './api/manage/login';
-          throw new Error('unauthorized');
-        }
-        return r.json();
-      })
+    api(url)
+      .then(function (r) { return r.json(); })
       .then(function (result) {
         rows = rows.concat(result.keys || []);
         nextCursor = result.list_complete ? null : result.cursor;
         renderTable(false);
       })
       .catch(function (err) {
-        if (err && err.message !== 'unauthorized') {
-          showToast('同步失败，请检查网络', 'error');
-        }
+        if (err && err.message !== 'unauthorized') showToast('同步失败，请检查网络', 'error');
       })
       .then(function () { loading = false; });
   }
 
-  // ---- rendering ----
   function renderStats() {
     var white = 0, block = 0;
     rows.forEach(function (row) {
@@ -247,9 +464,9 @@
         if (md.ListType === 'Block') block++;
       }
     });
-    document.getElementById('stat-total').textContent = rows.length;
-    document.getElementById('stat-white').textContent = white;
-    document.getElementById('stat-block').textContent = block;
+    $('stat-total').textContent = rows.length;
+    $('stat-white').textContent = white;
+    $('stat-block').textContent = block;
   }
 
   function renderTable(isLoading) {
@@ -266,15 +483,12 @@
     }
 
     tbody.textContent = '';
-    rows.forEach(function (row, index) {
-      tbody.appendChild(buildRow(row, index));
-    });
+    rows.forEach(function (row) { tbody.appendChild(buildRow(row)); });
   }
 
-  function buildRow(row, index) {
+  function buildRow(row) {
     var tr = document.createElement('tr');
 
-    // name
     var tdName = document.createElement('td');
     tdName.className = 'cell-name';
     var md = row.metadata && typeof row.metadata === 'object' ? row.metadata : null;
@@ -294,7 +508,6 @@
     }
     tr.appendChild(tdName);
 
-    // preview
     var tdPreview = document.createElement('td');
     tdPreview.className = 'cell-preview';
     tdPreview.style.textAlign = 'center';
@@ -318,18 +531,16 @@
     }
     tr.appendChild(tdPreview);
 
-    // metadata badges
     var tdTags = document.createElement('td');
     tdTags.className = 'cell-tags';
     renderTags(tdTags, row);
     tr.appendChild(tdTags);
 
-    // actions
     var tdActions = document.createElement('td');
     tdActions.className = 'cell-actions';
     tdActions.appendChild(actionBtn('复制地址', COPY_ICON, '', function () { doCopy(row); }));
-    tdActions.appendChild(actionBtn('白名单', WHITE_ICON, 'btn-secondary', function () { doWhite(row, tr, tdTags); }));
-    tdActions.appendChild(actionBtn('黑名单', BLOCK_ICON, '', function () { doBlock(row, tr, tdTags); }));
+    tdActions.appendChild(actionBtn('白名单', WHITE_ICON, 'btn-secondary', function () { doWhite(row, tdTags); }));
+    tdActions.appendChild(actionBtn('黑名单', BLOCK_ICON, '', function () { doBlock(row, tdTags); }));
     tdActions.appendChild(actionBtn('删除记录', TRASH_ICON, 'btn-danger', function () { doDelete(row, tr); }));
     tr.appendChild(tdActions);
 
@@ -381,7 +592,6 @@
     return btn;
   }
 
-  // ---- actions ----
   function findRow(key) {
     for (var i = 0; i < rows.length; i++) if (rows[i].name === key) return rows[i];
     return null;
@@ -394,9 +604,9 @@
     copyText(text, function () { showToast('复制文件链接成功~'); });
   }
 
-  function doWhite(row, tr, tdTags) {
+  function doWhite(row, tdTags) {
     if (!confirm('确认加入白名单吗?')) return;
-    fetch('./api/manage/white/' + encodeURIComponent(row.name), OPTS)
+    api('./api/manage/white/' + encodeURIComponent(row.name))
       .then(function (r) { return r.json(); })
       .then(function (result) {
         var target = findRow(row.name);
@@ -405,12 +615,12 @@
         renderStats();
         showToast('已加入白名单');
       })
-      .catch(function () { alert('An error occurred while synchronizing data with the server, please check the network connection'); });
+      .catch(function (err) { if (err.message !== 'unauthorized') showToast('操作失败，请重试', 'error'); });
   }
 
-  function doBlock(row, tr, tdTags) {
+  function doBlock(row, tdTags) {
     if (!confirm('确认加入黑名单吗?')) return;
-    fetch('./api/manage/block/' + encodeURIComponent(row.name), OPTS)
+    api('./api/manage/block/' + encodeURIComponent(row.name))
       .then(function (r) { return r.json(); })
       .then(function (result) {
         var target = findRow(row.name);
@@ -419,12 +629,12 @@
         renderStats();
         showToast('已加入黑名单');
       })
-      .catch(function () { alert('An error occurred while synchronizing data with the server, please check the network connection'); });
+      .catch(function (err) { if (err.message !== 'unauthorized') showToast('操作失败，请重试', 'error'); });
   }
 
   function doDelete(row, tr) {
     if (!confirm('确认从后台列表删除该记录吗？这不会删除源文件；如需禁止访问请加入黑名单。')) return;
-    fetch('./api/manage/delete/' + encodeURIComponent(row.name), OPTS)
+    api('./api/manage/delete/' + encodeURIComponent(row.name))
       .then(function (r) { return r.json(); })
       .then(function () {
         rows = rows.filter(function (item) { return item.name !== row.name; });
@@ -433,10 +643,9 @@
         if (!rows.length) renderTable(false);
         showToast('记录已删除');
       })
-      .catch(function () { alert('An error occurred while synchronizing data with the server, please check the network connection'); });
+      .catch(function (err) { if (err.message !== 'unauthorized') showToast('操作失败，请重试', 'error'); });
   }
 
-  // ---- search (300ms debounce, server-side prefix) ----
   searchInput.addEventListener('input', function () {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(function () {
@@ -445,25 +654,182 @@
     }, 300);
   });
 
-  document.getElementById('refresh-btn').addEventListener('click', function () {
-    loadList(true);
-  });
-
+  $('refresh-btn').addEventListener('click', function () { loadList(true); });
   loadMoreBtn.addEventListener('click', function () { loadList(false); });
 
-  // ---- lightbox ----
-  var lightbox = document.getElementById('lightbox');
-  var lightboxImg = document.getElementById('lightbox-img');
+  // ================= 用户管理 =================
+  var userTbody = $('user-tbody');
+  var allUsers = [];
+  var userFilter = '';
+
+  function loadUsers() {
+    userTbody.innerHTML = '<tr class="empty-row"><td colspan="5">加载中…</td></tr>';
+    api('./api/manage/users')
+      .then(function (r) {
+        if (r.status === 503) {
+          userTbody.innerHTML = '<tr class="empty-row"><td colspan="5">用户系统未启用（需要绑定 KV 命名空间）</td></tr>';
+          throw new Error('skip');
+        }
+        return r.json();
+      })
+      .then(function (result) {
+        allUsers = result.users || [];
+        renderUsers();
+      })
+      .catch(function (err) {
+        if (err && err.message !== 'unauthorized' && err.message !== 'skip') {
+          userTbody.innerHTML = '<tr class="empty-row"><td colspan="5">用户列表加载失败，请刷新重试</td></tr>';
+        }
+      });
+  }
+
+  function renderUsers() {
+    var list = allUsers.filter(function (u) {
+      return !userFilter || u.username.toLowerCase().indexOf(userFilter) > -1;
+    });
+    if (!list.length) {
+      userTbody.innerHTML = '<tr class="empty-row"><td colspan="5">' +
+        (allUsers.length ? '没有匹配的用户' : '还没有注册用户') + '</td></tr>';
+      return;
+    }
+    userTbody.textContent = '';
+    list.forEach(function (u) {
+      var tr = document.createElement('tr');
+
+      var tdName = document.createElement('td');
+      tdName.innerHTML = '<div class="user-name"></div>';
+      tdName.querySelector('.user-name').textContent = u.username;
+      tr.appendChild(tdName);
+
+      var tdCreated = document.createElement('td');
+      tdCreated.className = 'user-meta';
+      tdCreated.textContent = formatDateTime(u.createdAt);
+      tr.appendChild(tdCreated);
+
+      var tdLogin = document.createElement('td');
+      tdLogin.className = 'user-meta';
+      tdLogin.textContent = u.lastLoginAt ? formatDateTime(u.lastLoginAt) : '从未登录';
+      tr.appendChild(tdLogin);
+
+      var tdStatus = document.createElement('td');
+      var badge = document.createElement('span');
+      badge.className = 'badge ' + (u.disabled ? 'badge-coral' : 'badge-teal');
+      badge.textContent = u.disabled ? '已停用' : '正常';
+      tdStatus.appendChild(badge);
+      tr.appendChild(tdStatus);
+
+      var tdActions = document.createElement('td');
+      tdActions.className = 'cell-actions';
+
+      var toggleBtn = document.createElement('button');
+      toggleBtn.type = 'button';
+      toggleBtn.className = 'btn btn-sm ' + (u.disabled ? 'btn-secondary' : '');
+      toggleBtn.textContent = u.disabled ? '启用' : '停用';
+      toggleBtn.addEventListener('click', function () { toggleUser(u); });
+      tdActions.appendChild(toggleBtn);
+
+      var resetBtn = document.createElement('button');
+      resetBtn.type = 'button';
+      resetBtn.className = 'btn btn-sm btn-secondary';
+      resetBtn.textContent = '重置密码';
+      resetBtn.addEventListener('click', function () { openResetModal(u); });
+      tdActions.appendChild(resetBtn);
+
+      var delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn btn-sm btn-danger';
+      delBtn.textContent = '删除';
+      delBtn.addEventListener('click', function () { deleteUser(u); });
+      tdActions.appendChild(delBtn);
+
+      tr.appendChild(tdActions);
+      userTbody.appendChild(tr);
+    });
+  }
+
+  function userAction(action, payload) {
+    return api('./api/manage/users/' + action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(function (r) {
+      return r.json().then(function (data) {
+        if (!r.ok) throw new Error(data.message || '操作失败');
+        return data;
+      });
+    });
+  }
+
+  function toggleUser(u) {
+    var action = u.disabled ? 'enable' : 'disable';
+    if (!u.disabled && !confirm('确认停用用户「' + u.username + '」？停用后该用户将无法登录。')) return;
+    userAction(action, { username: u.username })
+      .then(function () {
+        showToast(u.disabled ? '已启用该用户' : '已停用该用户');
+        loadUsers();
+      })
+      .catch(function (err) { if (err.message !== 'unauthorized') showToast(err.message, 'error'); });
+  }
+
+  var resetTarget = null;
+  function openResetModal(u) {
+    resetTarget = u;
+    $('reset-username').textContent = u.username;
+    $('reset-password').value = '';
+    $('modal-reset').classList.add('show');
+    setTimeout(function () { $('reset-password').focus(); }, 100);
+  }
+  function closeResetModal() {
+    resetTarget = null;
+    $('modal-reset').classList.remove('show');
+  }
+  $('reset-cancel').addEventListener('click', closeResetModal);
+  $('modal-reset').addEventListener('click', function (e) {
+    if (e.target === $('modal-reset')) closeResetModal();
+  });
+  $('reset-confirm').addEventListener('click', function () {
+    var pwd = $('reset-password').value;
+    if (pwd.length < 8) { showToast('密码至少需要 8 个字符', 'error'); return; }
+    var u = resetTarget;
+    userAction('reset', { username: u.username, password: pwd })
+      .then(function () {
+        showToast('密码已重置');
+        closeResetModal();
+      })
+      .catch(function (err) { if (err.message !== 'unauthorized') showToast(err.message, 'error'); });
+  });
+
+  function deleteUser(u) {
+    if (!confirm('确认删除用户「' + u.username + '」？该用户的登录会话将同时失效，此操作不可恢复。')) return;
+    userAction('delete', { username: u.username })
+      .then(function () {
+        showToast('用户已删除');
+        loadUsers();
+      })
+      .catch(function (err) { if (err.message !== 'unauthorized') showToast(err.message, 'error'); });
+  }
+
+  $('user-refresh-btn').addEventListener('click', loadUsers);
+  $('user-search-input').addEventListener('input', function (e) {
+    userFilter = e.target.value.trim().toLowerCase();
+    renderUsers();
+  });
+
+  // ================= lightbox / helpers =================
+  var lightbox = $('lightbox');
+  var lightboxImg = $('lightbox-img');
   function openLightbox(src) {
     lightboxImg.src = src;
     lightbox.classList.add('open');
   }
   lightbox.addEventListener('click', function () { lightbox.classList.remove('open'); lightboxImg.src = ''; });
   document.addEventListener('keydown', function (e) {
-    if (e.key === 'Escape') lightbox.classList.remove('open');
+    if (e.key === 'Escape') {
+      lightbox.classList.remove('open');
+      closeResetModal();
+    }
   });
 
-  // ---- helpers ----
   function copyText(text, done) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
       navigator.clipboard.writeText(text).then(done, function () { legacyCopy(text); done(); });
@@ -491,6 +857,12 @@
     toastTimer = setTimeout(function () { toast.classList.remove('show'); }, 1800);
   }
 
+  function escapeHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
   function formatSize(bytes) {
     if (!bytes || bytes < 0) return '';
     if (bytes < 1024) return bytes + ' B';
@@ -503,10 +875,16 @@
     if (isNaN(d.getTime())) return '';
     return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
   }
-  function pad(n) { return n < 10 ? '0' + n : '' + n; }
 
-  // ---- init ----
-  loadList(true);
+  function formatDateTime(iso) {
+    if (!iso) return '—';
+    var d = new Date(iso);
+    if (isNaN(d.getTime())) return '—';
+    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) +
+      ' ' + pad(d.getHours()) + ':' + pad(d.getMinutes());
+  }
+
+  function pad(n) { return n < 10 ? '0' + n : '' + n; }
 })();
 </script>
 </body>
