@@ -1,5 +1,5 @@
 const assert = require('assert');
-const { makeContext } = require('./helpers');
+const { makeContext, createMockKV } = require('./helpers');
 
 describe('/api/config endpoint', function () {
   it('returns defaults when nothing is configured', async function () {
@@ -19,12 +19,15 @@ describe('/api/config endpoint', function () {
       uploadRequiresAuth: false,
       showAdminEntry: true,
       authEnabled: false,
+      registrationMode: 'closed',
       registrationOpen: false,
+      inviteRequired: false,
       netdiskEnabled: false,
       webdavEnabled: false,
       webdavUrl: null,
       webdavAuthRequired: false,
       webdavUser: null,
+      webdavAccountCount: 0,
       storage: {
         available: [],
         default: 'telegram'
@@ -61,12 +64,15 @@ describe('/api/config endpoint', function () {
       uploadRequiresAuth: true,
       showAdminEntry: false,
       authEnabled: false,
+      registrationMode: 'closed',
       registrationOpen: false,
+      inviteRequired: false,
       netdiskEnabled: false,
       webdavEnabled: false,
       webdavUrl: null,
       webdavAuthRequired: false,
       webdavUser: null,
+      webdavAccountCount: 0,
       storage: {
         available: [],
         default: 'telegram'
@@ -80,7 +86,7 @@ describe('/api/config endpoint', function () {
   it('reports a ready deployment with no problems', async function () {
     const { onRequestGet } = await import('../functions/api/config.js');
     const res = await onRequestGet(makeContext({
-      env: { TG_Bot_Token: 'token', TG_Chat_ID: '-100', img_url: {}, img_r2: {} },
+      env: { TG_Bot_Token: 'token', TG_Chat_ID: '-100', img_url: createMockKV(), img_r2: createMockKV() },
     }));
 
     const body = JSON.parse(await res.text());

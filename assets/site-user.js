@@ -68,17 +68,22 @@
     chip.appendChild(login);
   }
 
-  function renderUser(chip, username) {
+  function renderUser(chip, username, isAdmin) {
     chip.classList.add('user-chip');
     var btn = h('button', { class: 'btn btn-sm btn-secondary', type: 'button', 'aria-haspopup': 'true', 'aria-expanded': 'false' }, [
       icon(ICON_USER),
       h('span', { class: 'user-chip-name', text: username })
     ]);
-    var menu = h('div', { class: 'user-chip-menu', role: 'menu' }, [
+    var menuItems = [
       h('a', { href: '/profile', role: 'menuitem', text: '个人中心' }),
-      h('a', { href: '/netdisk', role: 'menuitem', text: '我的网盘' }),
-      h('button', { type: 'button', role: 'menuitem', text: '退出登录' })
-    ]);
+      h('a', { href: '/netdisk', role: 'menuitem', text: '我的网盘' })
+    ];
+    // 管理员：在菜单中增加「后台」入口
+    if (isAdmin) {
+      menuItems.push(h('a', { href: '/admin', role: 'menuitem', text: '后台' }));
+    }
+    menuItems.push(h('button', { type: 'button', role: 'menuitem', text: '退出登录' }));
+    var menu = h('div', { class: 'user-chip-menu', role: 'menu' }, menuItems);
 
     btn.addEventListener('click', function (e) {
       e.stopPropagation();
@@ -108,9 +113,10 @@
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (data) {
         if (!data || !data.authEnabled) return; // 用户系统未启用，保持隐藏
+        var isAdmin = data.user && data.user.role === 'admin';
         chips.forEach(function (chip) {
           chip.textContent = '';
-          if (data.user) renderUser(chip, data.user.username);
+          if (data.user) renderUser(chip, data.user.username, isAdmin);
           else renderGuest(chip);
         });
       })

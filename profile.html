@@ -17,6 +17,7 @@
   .meta-row dd { margin: 0; color: var(--c-ink-soft); font-family: var(--font-mono); font-size: 14px; }
   .quick-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--sp-2); }
   .quick-grid a { display: flex; align-items: center; gap: 8px; }
+  .profile-badges { display: inline-flex; gap: 6px; align-items: center; }
 </style>
 </head>
 <body>
@@ -35,7 +36,10 @@
         <div class="avatar" id="avatar" aria-hidden="true">?</div>
         <div>
           <h1 style="margin:0; font-size:24px;" id="profile-username">—</h1>
-          <span class="badge badge-teal" id="profile-status">已登录</span>
+          <div class="profile-badges">
+            <span class="badge badge-teal" id="profile-status">已登录</span>
+            <span class="badge badge-coral" id="profile-admin-badge" hidden>管理员</span>
+          </div>
         </div>
       </div>
       <dl class="profile-meta">
@@ -44,6 +48,7 @@
         <div class="meta-row"><dt>登录状态保持</dt><dd>30 天（关闭浏览器后仍有效）</dd></div>
       </dl>
       <div style="margin-top: var(--sp-3); display:flex; gap: var(--sp-2); flex-wrap: wrap;">
+        <a class="btn btn-primary" id="btn-admin" href="/admin" hidden>进入后台管理</a>
         <button class="btn btn-danger" type="button" id="btn-logout">退出登录</button>
       </div>
     </section>
@@ -87,6 +92,11 @@
       document.getElementById('avatar').textContent = data.user.username.charAt(0).toUpperCase();
       document.getElementById('meta-created').textContent = fmt(data.user.createdAt);
       document.getElementById('meta-login').textContent = fmt(data.user.lastLoginAt);
+      // 管理员：显示徽章与后台入口
+      if (data.user.role === 'admin') {
+        document.getElementById('profile-admin-badge').hidden = false;
+        document.getElementById('btn-admin').hidden = false;
+      }
     })
     .catch(function () {
       window.location.replace('/auth?next=' + encodeURIComponent('/profile'));

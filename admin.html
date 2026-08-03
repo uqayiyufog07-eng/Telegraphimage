@@ -23,19 +23,11 @@
   .topbar .brand-mini .logo-badge .icon { width: 20px; height: 20px; }
   .topbar nav { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 
-  /* ---- 登录卡片 ---- */
-  .login-wrap { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
-  .login-card { width: 100%; max-width: 400px; }
-  .login-card h1 { font-size: 22px; margin: 0 0 6px; }
-  .login-card .sub { color: var(--c-ink-soft); font-size: 14px; margin-bottom: var(--sp-3); }
-  .login-card .field { margin-bottom: var(--sp-2); }
-  .login-card label { display: block; font-weight: 700; font-size: 13px; margin-bottom: 6px; }
-  .login-error {
-    display: none; padding: 10px 12px; margin-bottom: var(--sp-2);
-    background: var(--c-coral); color: var(--c-white); font-weight: 600; font-size: 14px;
-    border: var(--bd-thin) solid var(--c-ink); border-radius: var(--radius-sm);
-  }
-  .login-error.show { display: block; animation: pop-in var(--dur-mid) var(--ease-pop) both; }
+  /* ---- 居中卡片（用于访问拒绝视图） ---- */
+  .center-wrap { min-height: 60vh; display: flex; align-items: center; justify-content: center; }
+  .center-card { width: 100%; max-width: 400px; }
+  .center-card h1 { font-size: 22px; margin: 0 0 6px; }
+  .center-card .sub { color: var(--c-ink-soft); font-size: 14px; margin-bottom: var(--sp-3); }
 
   /* ---- 选项卡 ---- */
   .tabs { display: flex; gap: var(--sp-1); margin-bottom: var(--sp-3); overflow-x: auto; }
@@ -112,11 +104,61 @@
   .modal-head { padding: var(--sp-2) var(--sp-3); border-bottom: var(--bd); background: var(--c-yellow); font-family: var(--font-head); font-weight: 700; }
   .modal-body { padding: var(--sp-3); }
   .modal-foot { display: flex; gap: var(--sp-1); justify-content: flex-end; padding: var(--sp-2) var(--sp-3); border-top: var(--bd); background: var(--c-paper); }
+  .modal-body .field { margin-bottom: var(--sp-2); }
+  .modal-body label { display: block; font-weight: 700; font-size: 13px; margin-bottom: 6px; }
 
   /* ---- lightbox ---- */
   .lightbox { position: fixed; inset: 0; z-index: 200; display: none; align-items: center; justify-content: center; padding: var(--sp-3); background: rgba(20, 20, 20, .72); }
   .lightbox.open { display: flex; }
   .lightbox img { max-width: 92vw; max-height: 88vh; border: var(--bd); border-radius: var(--radius); box-shadow: 8px 8px 0 rgba(0,0,0,.45); background: var(--c-white); }
+
+  /* ---- 设置：注册模式单选 ---- */
+  .radio-group { display: grid; gap: var(--sp-2); }
+  .radio-item {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: var(--sp-2); border: var(--bd-thin) solid var(--c-ink); border-radius: var(--radius-sm);
+    cursor: pointer; transition: background var(--dur-fast) ease; background: var(--c-white);
+  }
+  .radio-item:hover { background: var(--c-paper-warm); }
+  .radio-item input[type="radio"] { margin-top: 3px; flex: none; transform: scale(1.15); }
+  .radio-item .radio-text { font-size: 14px; line-height: 1.5; }
+  .radio-item .radio-text b { font-family: var(--font-head); display: block; margin-bottom: 2px; }
+  .radio-item .radio-text small { color: var(--c-ink-soft); font-size: 12px; }
+
+  /* ---- WebDAV 信息区（参考 netdisk.html 风格） ---- */
+  .webdav-info-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; margin-bottom: 10px;
+    background: var(--c-paper-warm); border: var(--bd-thin); border-radius: var(--radius-sm);
+  }
+  .webdav-info-row .label {
+    font-family: var(--font-head); font-weight: 700; font-size: 13px;
+    min-width: 80px; flex: none;
+  }
+  .webdav-info-row .value {
+    font-family: var(--font-mono); font-size: 13px; flex: 1; word-break: break-all;
+  }
+  .webdav-info-row .copy-btn { flex: none; }
+  .webdav-badge {
+    display: inline-block; padding: 2px 10px; border-radius: 99px;
+    font-size: 12px; font-weight: 700; font-family: var(--font-head);
+  }
+  .webdav-badge.on { background: var(--c-teal); color: var(--c-white); }
+  .webdav-badge.off { background: var(--c-paper); color: var(--c-ink-soft); }
+  .webdav-section-title {
+    font-family: var(--font-head); font-weight: 700; font-size: 14px;
+    margin: var(--sp-2) 0 8px; padding-bottom: 6px; border-bottom: var(--bd-thin);
+  }
+  .webdav-guide {
+    font-size: 13px; line-height: 1.7; color: var(--c-ink-soft);
+  }
+  .webdav-guide code {
+    font-family: var(--font-mono); font-size: 12px;
+    background: var(--c-paper-warm); padding: 2px 6px; border-radius: 4px;
+    border: var(--bd-thin);
+  }
+  .webdav-guide .step { margin-bottom: 8px; padding-left: 4px; }
+  .webdav-guide .step b { color: var(--c-ink); }
 
   @media (max-width: 760px) {
     .stats { grid-template-columns: 1fr; }
@@ -140,23 +182,12 @@
   </nav>
 </header>
 
-<!-- 登录视图 -->
-<main class="wrap login-wrap" id="view-login" hidden>
-  <div class="card card-pad login-card">
-    <h1>管理员登录</h1>
-    <p class="sub">使用部署时在环境变量中配置的 BASIC_USER / BASIC_PASS</p>
-    <div class="login-error" id="login-error" role="alert"></div>
-    <form id="login-form">
-      <div class="field">
-        <label for="login-user">用户名</label>
-        <input class="input" id="login-user" autocomplete="username" required>
-      </div>
-      <div class="field">
-        <label for="login-pass">密码</label>
-        <input class="input" id="login-pass" type="password" autocomplete="current-password" required>
-      </div>
-      <button class="btn btn-primary" type="submit" style="width:100%" id="login-submit">登 录</button>
-    </form>
+<!-- 访问拒绝视图 -->
+<main class="wrap center-wrap" id="view-denied" hidden>
+  <div class="card card-pad center-card">
+    <h1>需要管理员权限</h1>
+    <p class="sub">您当前未登录或账户没有管理员权限，请使用管理员账号登录。</p>
+    <a class="btn btn-primary" href="/auth?next=/admin" style="width:100%;text-align:center;">前往登录</a>
   </div>
 </main>
 
@@ -166,6 +197,9 @@
     <button class="btn btn-sm tab-btn" role="tab" id="tab-overview" aria-selected="true">系统概览</button>
     <button class="btn btn-sm tab-btn" role="tab" id="tab-images" aria-selected="false">图片管理</button>
     <button class="btn btn-sm tab-btn" role="tab" id="tab-users" aria-selected="false">用户管理</button>
+    <button class="btn btn-sm tab-btn" role="tab" id="tab-settings" aria-selected="false">站点设置</button>
+    <button class="btn btn-sm tab-btn" role="tab" id="tab-invites" aria-selected="false">邀请码</button>
+    <button class="btn btn-sm tab-btn" role="tab" id="tab-webdav" aria-selected="false">WebDAV</button>
   </div>
 
   <!-- 系统概览 -->
@@ -224,9 +258,98 @@
       </table>
     </div>
   </section>
+
+  <!-- 站点设置 -->
+  <section class="tab-panel" id="panel-settings" role="tabpanel" hidden>
+    <div class="card card-pad" style="max-width:560px;">
+      <h2 style="font-size:17px; margin:0 0 var(--sp-2); font-family:var(--font-head)">注册模式</h2>
+      <p style="font-size:13px; color:var(--c-ink-soft); margin:0 0 var(--sp-2);">控制新用户注册的方式。</p>
+      <div class="radio-group" id="settings-reg-mode">
+        <label class="radio-item">
+          <input type="radio" name="reg-mode" value="open">
+          <span class="radio-text"><b>开放注册</b><small>任何人都可以自由注册账号。</small></span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" name="reg-mode" value="invite">
+          <span class="radio-text"><b>邀请码注册</b><small>必须持有有效邀请码才能注册。</small></span>
+        </label>
+        <label class="radio-item">
+          <input type="radio" name="reg-mode" value="closed">
+          <span class="radio-text"><b>关闭注册</b><small>不接受新用户注册。</small></span>
+        </label>
+      </div>
+      <div id="settings-updated-at" style="font-size:12px; color:var(--c-ink-soft); margin-top:var(--sp-2);"></div>
+      <div style="margin-top:var(--sp-3);">
+        <button type="button" class="btn btn-primary" id="settings-save">保存设置</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- 邀请码 -->
+  <section class="tab-panel" id="panel-invites" role="tabpanel" hidden>
+    <div class="toolbar">
+      <button type="button" class="btn btn-primary" id="invite-create-btn"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>生成邀请码</span></button>
+      <button type="button" class="btn btn-icon" id="invite-refresh-btn" title="刷新邀请码列表" aria-label="刷新邀请码列表"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg></button>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>邀请码</th><th>创建时间</th><th>使用次数</th><th>上限</th><th>过期时间</th><th>状态</th><th style="text-align:right">操作</th></tr>
+        </thead>
+        <tbody id="invite-tbody">
+          <tr class="empty-row"><td colspan="7">加载中…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- WebDAV -->
+  <section class="tab-panel" id="panel-webdav" role="tabpanel" hidden>
+    <!-- 只读展示区 -->
+    <div class="card card-pad" style="max-width:620px; margin-bottom:var(--sp-3);">
+      <h2 style="font-size:17px; margin:0 0 var(--sp-2); font-family:var(--font-head)">WebDAV 连接信息</h2>
+      <div id="webdav-disabled-note" style="display:none; margin-bottom:var(--sp-2); padding:12px 14px; background:var(--c-coral); color:var(--c-white); border:var(--bd-thin) solid var(--c-ink); border-radius:var(--radius-sm); font-size:13px; line-height:1.6;">
+        <b>WebDAV 未启用。</b>需要绑定名为 img_r2 的 R2 存储桶后才能使用。
+      </div>
+      <div class="webdav-info-row">
+        <span class="label">服务器地址</span>
+        <span class="value" id="webdav-url">-</span>
+        <button class="btn btn-secondary btn-sm" id="webdav-copy-url">复制</button>
+      </div>
+      <div class="webdav-info-row">
+        <span class="label">鉴权状态</span>
+        <span class="value"><span class="webdav-badge off" id="webdav-auth-badge">未知</span></span>
+      </div>
+      <div class="webdav-section-title">客户端连接指南</div>
+      <div class="webdav-guide">
+        <div class="step"><b>Windows：</b>打开文件资源管理器 → 右键"此电脑" → 映射网络驱动器 → 输入服务器地址 → 勾选"使用其他凭据" → 输入用户名和密码</div>
+        <div class="step"><b>macOS：</b>Finder → 前往 → 连接服务器（<code>Cmd+K</code>）→ 输入服务器地址 → 输入用户名和密码</div>
+        <div class="step"><b>iOS：</b>使用"文件"App → 浏览 → 连接服务器 → 输入服务器地址和凭据</div>
+        <div class="step"><b>Android：</b>使用支持 WebDAV 的文件管理器（如 Solid Explorer、ES文件浏览器）→ 添加 WebDAV 连接</div>
+        <div class="step"><b>跨平台：</b>使用 <code>RaiDrive</code>、<code>Cyberduck</code> 或 <code>WinSCP</code> 等工具连接</div>
+      </div>
+    </div>
+
+    <!-- 访问码管理区 -->
+    <h2 style="font-size:17px; margin:0 0 var(--sp-2); font-family:var(--font-head)">WebDAV 访问码管理</h2>
+    <div class="toolbar">
+      <button type="button" class="btn btn-primary" id="webdav-create-btn"><svg class="icon icon-sm" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg><span>新建账号</span></button>
+      <button type="button" class="btn btn-icon" id="webdav-refresh-btn" title="刷新账号列表" aria-label="刷新账号列表"><svg class="icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36M21 3v6h-6"/></svg></button>
+    </div>
+    <div class="table-wrap">
+      <table class="table">
+        <thead>
+          <tr><th>用户名</th><th>创建时间</th><th>状态</th><th style="text-align:right">操作</th></tr>
+        </thead>
+        <tbody id="webdav-tbody">
+          <tr class="empty-row"><td colspan="4">加载中…</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
 </main>
 
-<!-- 重置密码模态 -->
+<!-- 重置密码模态（用户管理） -->
 <div class="modal-overlay" id="modal-reset">
   <div class="modal">
     <div class="modal-head">重置密码</div>
@@ -238,6 +361,66 @@
     <div class="modal-foot">
       <button class="btn btn-ghost btn-sm" id="reset-cancel">取消</button>
       <button class="btn btn-primary btn-sm" id="reset-confirm">确认重置</button>
+    </div>
+  </div>
+</div>
+
+<!-- 生成邀请码模态 -->
+<div class="modal-overlay" id="modal-invite-create">
+  <div class="modal">
+    <div class="modal-head">生成邀请码</div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="invite-max-uses">最大使用次数</label>
+        <input class="input" id="invite-max-uses" type="number" min="0" placeholder="留空或 0 = 无限次">
+      </div>
+      <div class="field">
+        <label for="invite-expires-days">有效天数</label>
+        <input class="input" id="invite-expires-days" type="number" min="1" placeholder="留空 = 永不过期">
+      </div>
+      <p style="font-size:12px; color:var(--c-ink-soft); margin-bottom:0;">生成后可复制邀请码分享给他人注册。</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="invite-create-cancel">取消</button>
+      <button class="btn btn-primary btn-sm" id="invite-create-confirm">生成</button>
+    </div>
+  </div>
+</div>
+
+<!-- WebDAV 新建账号模态 -->
+<div class="modal-overlay" id="modal-webdav-create">
+  <div class="modal">
+    <div class="modal-head">新建 WebDAV 账号</div>
+    <div class="modal-body">
+      <div class="field">
+        <label for="webdav-new-username">用户名</label>
+        <input class="input" id="webdav-new-username" type="text" placeholder="输入用户名" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="webdav-new-password">密码</label>
+        <input class="input" id="webdav-new-password" type="text" placeholder="至少 6 个字符" autocomplete="off">
+      </div>
+      <p style="font-size:12px; color:var(--c-ink-soft); margin-bottom:0;">账号创建后即可用于 WebDAV 客户端连接。</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="webdav-create-cancel">取消</button>
+      <button class="btn btn-primary btn-sm" id="webdav-create-confirm">创建</button>
+    </div>
+  </div>
+</div>
+
+<!-- WebDAV 重置密码模态 -->
+<div class="modal-overlay" id="modal-webdav-reset">
+  <div class="modal">
+    <div class="modal-head">重置 WebDAV 密码</div>
+    <div class="modal-body">
+      <p style="margin-top:0; font-size:14px;">为账号 <b id="webdav-reset-username"></b> 设置新密码：</p>
+      <input class="input" id="webdav-reset-password" type="text" placeholder="至少 6 个字符" autocomplete="off">
+      <p style="font-size:12px; color:var(--c-ink-soft); margin-bottom:0;">重置后旧密码立即失效。</p>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost btn-sm" id="webdav-reset-cancel">取消</button>
+      <button class="btn btn-primary btn-sm" id="webdav-reset-confirm">确认重置</button>
     </div>
   </div>
 </div>
@@ -260,28 +443,13 @@
   var toast = $('toast');
   var toastTimer = null;
 
-  // ================= 管理员凭证（BASIC，存 sessionStorage） =================
-  var CRED_KEY = 'admin_basic_creds';
-
-  function getCreds() {
-    try { return JSON.parse(sessionStorage.getItem(CRED_KEY) || 'null'); } catch { return null; }
-  }
-  function setCreds(c) { sessionStorage.setItem(CRED_KEY, JSON.stringify(c)); }
-  function clearCreds() { sessionStorage.removeItem(CRED_KEY); }
-
-  // 统一 API 请求：自动附带管理员凭证；401 时回登录视图
+  // 统一 API 请求：自动带 cookie；401 时跳转登录
   function api(url, opts) {
     opts = opts || {};
     opts.credentials = 'include';
-    opts.headers = opts.headers || {};
-    var creds = getCreds();
-    if (creds && !opts.headers.Authorization) {
-      opts.headers.Authorization = 'Basic ' + btoa(unescape(encodeURIComponent(creds.user + ':' + creds.pass)));
-    }
     return fetch(url, opts).then(function (res) {
       if (res.status === 401) {
-        clearCreds();
-        showLogin('登录状态已失效，请重新登录。');
+        window.location.href = '/auth?next=/admin';
         throw new Error('unauthorized');
       }
       return res;
@@ -289,17 +457,14 @@
   }
 
   // ================= 视图切换 =================
-  function showLogin(message) {
-    $('view-login').hidden = false;
+  function showAccessDenied() {
+    $('view-denied').hidden = false;
     $('view-panel').hidden = true;
     $('topnav').hidden = true;
-    var err = $('login-error');
-    if (message) { err.textContent = message; err.classList.add('show'); }
-    else err.classList.remove('show');
   }
 
   function showPanel() {
-    $('view-login').hidden = true;
+    $('view-denied').hidden = true;
     $('view-panel').hidden = false;
     $('topnav').hidden = false;
     $('logout-btn').hidden = false;
@@ -308,59 +473,31 @@
     loadUsers();
   }
 
-  // ================= 登录流程 =================
-  $('login-form').addEventListener('submit', function (e) {
-    e.preventDefault();
-    var user = $('login-user').value.trim();
-    var pass = $('login-pass').value;
-    if (!user || !pass) return;
-    var btn = $('login-submit');
-    btn.disabled = true;
-    btn.textContent = '验证中…';
-    setCreds({ user: user, pass: pass });
-    api('./api/manage/check')
-      .then(function (r) { return r.text(); })
-      .then(function (result) {
-        if (result === 'true' || result === 'Not using basic auth.') {
+  // ================= 退出登录 =================
+  $('logout-btn').addEventListener('click', function () {
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+      .then(function () { window.location.href = '/auth'; })
+      .catch(function () { window.location.href = '/auth'; });
+  });
+
+  // 启动：通过用户系统检查鉴权状态
+  (function boot() {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data && data.user && data.user.role === 'admin') {
           showPanel();
         } else {
-          clearCreds();
-          showLogin('用户名或密码不正确。');
+          window.location.href = '/auth?next=/admin';
         }
       })
-      .catch(function (err) {
-        if (!err || err.message !== 'unauthorized') {
-          clearCreds();
-          showLogin('网络异常，请稍后重试。');
-        }
-      })
-      .then(function () { btn.disabled = false; btn.textContent = '登 录'; });
-  });
-
-  $('logout-btn').addEventListener('click', function () {
-    clearCreds();
-    // 同时失效浏览器可能缓存的 BASIC 凭证
-    fetch('./api/manage/logout', { credentials: 'include' }).finally(function () {
-      showLogin();
-    });
-  });
-
-  // 启动：探测鉴权状态
-  (function boot() {
-    api('./api/manage/check')
-      .then(function (r) { return r.text(); })
-      .then(function (result) {
-        if (result === 'true' || result === 'Not using basic auth.') showPanel();
-        else showLogin();
-      })
-      .catch(function (err) {
-        if (err && err.message === 'unauthorized') return; // showLogin 已被 api() 触发
-        showLogin('无法连接服务器，请检查网络后刷新。');
+      .catch(function () {
+        showAccessDenied();
       });
   })();
 
   // ================= 选项卡 =================
-  var tabs = ['overview', 'images', 'users'];
+  var tabs = ['overview', 'images', 'users', 'settings', 'invites', 'webdav'];
   tabs.forEach(function (name) {
     $('tab-' + name).addEventListener('click', function () { selectTab(name); });
   });
@@ -371,6 +508,9 @@
     });
     if (name === 'overview') loadOverview();
     if (name === 'users') loadUsers();
+    if (name === 'settings') loadSettings();
+    if (name === 'invites') loadInvites();
+    if (name === 'webdav') loadWebDAV();
   }
 
   // ================= 系统概览 =================
@@ -382,6 +522,7 @@
   function loadOverview() {
     fetch('/api/config').then(function (r) { return r.json(); }).then(function (cfg) {
       var s = cfg.setup || {};
+      var regModeText = ({ open: '开放注册', invite: '邀请码注册', closed: '已关闭' })[cfg.registrationMode] || '已关闭';
       var cards = [];
       cards.push(ovCard('图片存储', cfg.storage.default === 'r2' ? 'R2' : 'Telegram',
         s.storage === 'ok' ? 'ok' : 'err'));
@@ -391,9 +532,10 @@
         s.netdisk === 'ok' ? 'ok' : 'off'));
       cards.push(ovCard('图片审查', ({ none: '关闭', 'cloudflare-ai': 'Workers AI', moderatecontent: 'ModerateContent' })[s.moderation] || '配置异常',
         s.moderation === 'none' ? 'off' : (String(s.moderation).indexOf('missing') > -1 || s.moderation === 'unknown-provider' ? 'warn' : 'ok')));
-      cards.push(ovCard('用户系统', cfg.authEnabled ? (cfg.registrationOpen ? '已启用 · 开放注册' : '已启用 · 关闭注册') : '未启用',
+      cards.push(ovCard('用户系统', cfg.authEnabled ? ('已启用 · ' + regModeText) : '未启用',
         cfg.authEnabled ? 'ok' : 'off'));
       cards.push(ovCard('短链接', cfg.enableShortUrls ? '已启用' : '未启用', cfg.enableShortUrls ? 'ok' : 'off'));
+      cards.push(ovCard('WebDAV 访问码', String(cfg.webdavAccountCount || 0) + ' 个', cfg.webdavAccountCount > 0 ? 'ok' : 'off'));
       $('ov-grid').innerHTML = cards.join('');
 
       var box = $('ov-problems');
@@ -815,6 +957,439 @@
     renderUsers();
   });
 
+  // ================= 站点设置 =================
+  function loadSettings() {
+    api('./api/manage/site-settings')
+      .then(function (r) {
+        if (r.status === 503) {
+          $('settings-updated-at').textContent = '用户系统未启用，无法管理站点设置。';
+          return null;
+        }
+        return r.json();
+      })
+      .then(function (data) {
+        if (!data) return;
+        var radios = document.querySelectorAll('input[name="reg-mode"]');
+        radios.forEach(function (radio) {
+          radio.checked = (radio.value === data.registrationMode);
+        });
+        if (data.updatedAt) {
+          $('settings-updated-at').textContent = '上次更新：' + formatDateTime(data.updatedAt);
+        }
+      })
+      .catch(function (err) {
+        if (err.message !== 'unauthorized') showToast('设置加载失败', 'error');
+      });
+  }
+
+  $('settings-save').addEventListener('click', function () {
+    var selected = document.querySelector('input[name="reg-mode"]:checked');
+    if (!selected) { showToast('请选择注册模式', 'error'); return; }
+    api('./api/manage/site-settings', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ registrationMode: selected.value }),
+    })
+      .then(function (r) { return r.json(); })
+      .then(function (data) {
+        if (data.ok) {
+          showToast('设置已保存');
+          if (data.updatedAt) {
+            $('settings-updated-at').textContent = '上次更新：' + formatDateTime(data.updatedAt);
+          }
+        } else {
+          showToast(data.message || '保存失败', 'error');
+        }
+      })
+      .catch(function (err) { if (err.message !== 'unauthorized') showToast('保存失败', 'error'); });
+  });
+
+  // ================= 邀请码管理 =================
+  var inviteTbody = $('invite-tbody');
+
+  function loadInvites() {
+    inviteTbody.innerHTML = '<tr class="empty-row"><td colspan="7">加载中…</td></tr>';
+    api('./api/manage/invites')
+      .then(function (r) {
+        if (r.status === 503) {
+          inviteTbody.innerHTML = '<tr class="empty-row"><td colspan="7">用户系统未启用（需要绑定 KV 命名空间）</td></tr>';
+          throw new Error('skip');
+        }
+        return r.json();
+      })
+      .then(function (data) {
+        renderInvites(data.codes || []);
+      })
+      .catch(function (err) {
+        if (err && err.message !== 'unauthorized' && err.message !== 'skip') {
+          inviteTbody.innerHTML = '<tr class="empty-row"><td colspan="7">邀请码列表加载失败，请刷新重试</td></tr>';
+        }
+      });
+  }
+
+  function renderInvites(codes) {
+    if (!codes.length) {
+      inviteTbody.innerHTML = '<tr class="empty-row"><td colspan="7">还没有邀请码</td></tr>';
+      return;
+    }
+    inviteTbody.textContent = '';
+    codes.forEach(function (c) {
+      var tr = document.createElement('tr');
+
+      var tdCode = document.createElement('td');
+      tdCode.className = 'cell-name';
+      var codeDiv = document.createElement('div');
+      codeDiv.className = 'fname';
+      codeDiv.textContent = c.code;
+      tdCode.appendChild(codeDiv);
+      tr.appendChild(tdCode);
+
+      var tdCreated = document.createElement('td');
+      tdCreated.className = 'user-meta';
+      tdCreated.textContent = formatDateTime(c.createdAt);
+      tr.appendChild(tdCreated);
+
+      var tdUsed = document.createElement('td');
+      tdUsed.className = 'user-meta';
+      tdUsed.textContent = String(c.usedCount || 0);
+      tr.appendChild(tdUsed);
+
+      var tdMax = document.createElement('td');
+      tdMax.className = 'user-meta';
+      tdMax.textContent = c.maxUses > 0 ? String(c.maxUses) : '无限';
+      tr.appendChild(tdMax);
+
+      var tdExpires = document.createElement('td');
+      tdExpires.className = 'user-meta';
+      tdExpires.textContent = c.expiresAt ? formatDateTime(c.expiresAt) : '永不过期';
+      tr.appendChild(tdExpires);
+
+      var tdStatus = document.createElement('td');
+      var isExpired = c.expiresAt && new Date(c.expiresAt).getTime() < Date.now();
+      var isExhausted = c.maxUses > 0 && c.usedCount >= c.maxUses;
+      var badge = document.createElement('span');
+      if (c.disabled) { badge.className = 'badge badge-coral'; badge.textContent = '已停用'; }
+      else if (isExpired) { badge.className = 'badge badge-coral'; badge.textContent = '已过期'; }
+      else if (isExhausted) { badge.className = 'badge badge-yellow'; badge.textContent = '已用尽'; }
+      else { badge.className = 'badge badge-teal'; badge.textContent = '有效'; }
+      tdStatus.appendChild(badge);
+      tr.appendChild(tdStatus);
+
+      var tdActions = document.createElement('td');
+      tdActions.className = 'cell-actions';
+
+      var copyBtn = document.createElement('button');
+      copyBtn.type = 'button';
+      copyBtn.className = 'btn btn-sm btn-secondary';
+      copyBtn.textContent = '复制';
+      copyBtn.addEventListener('click', function () {
+        copyText(c.code, function () { showToast('邀请码已复制'); });
+      });
+      tdActions.appendChild(copyBtn);
+
+      var toggleBtn = document.createElement('button');
+      toggleBtn.type = 'button';
+      toggleBtn.className = 'btn btn-sm ' + (c.disabled ? 'btn-secondary' : '');
+      toggleBtn.textContent = c.disabled ? '启用' : '停用';
+      toggleBtn.addEventListener('click', function () { inviteToggle(c); });
+      tdActions.appendChild(toggleBtn);
+
+      var delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn btn-sm btn-danger';
+      delBtn.textContent = '删除';
+      delBtn.addEventListener('click', function () { inviteDelete(c); });
+      tdActions.appendChild(delBtn);
+
+      tr.appendChild(tdActions);
+      inviteTbody.appendChild(tr);
+    });
+  }
+
+  function inviteAction(action, payload) {
+    return api('./api/manage/invites/' + action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(function (r) {
+      return r.json().then(function (data) {
+        if (!r.ok) throw new Error(data.message || '操作失败');
+        return data;
+      });
+    });
+  }
+
+  function inviteToggle(c) {
+    var action = c.disabled ? 'enable' : 'disable';
+    if (!c.disabled && !confirm('确认停用邀请码「' + c.code + '」？停用后该码将无法用于注册。')) return;
+    inviteAction(action, { code: c.code })
+      .then(function () {
+        showToast(c.disabled ? '已启用该邀请码' : '已停用该邀请码');
+        loadInvites();
+      })
+      .catch(function (err) { if (err.message !== 'unauthorized') showToast(err.message, 'error'); });
+  }
+
+  function inviteDelete(c) {
+    if (!confirm('确认删除邀请码「' + c.code + '」？此操作不可恢复。')) return;
+    inviteAction('delete', { code: c.code })
+      .then(function () {
+        showToast('邀请码已删除');
+        loadInvites();
+      })
+      .catch(function (err) { if (err.message !== 'unauthorized') showToast(err.message, 'error'); });
+  }
+
+  // 生成邀请码模态
+  function openInviteCreateModal() {
+    $('invite-max-uses').value = '';
+    $('invite-expires-days').value = '';
+    $('modal-invite-create').classList.add('show');
+    setTimeout(function () { $('invite-max-uses').focus(); }, 100);
+  }
+  function closeInviteCreateModal() {
+    $('modal-invite-create').classList.remove('show');
+  }
+  $('invite-create-btn').addEventListener('click', openInviteCreateModal);
+  $('invite-create-cancel').addEventListener('click', closeInviteCreateModal);
+  $('modal-invite-create').addEventListener('click', function (e) {
+    if (e.target === $('modal-invite-create')) closeInviteCreateModal();
+  });
+  $('invite-create-confirm').addEventListener('click', function () {
+    var maxUsesRaw = $('invite-max-uses').value.trim();
+    var expiresDaysRaw = $('invite-expires-days').value.trim();
+    var payload = {};
+    if (maxUsesRaw !== '') {
+      var mu = parseInt(maxUsesRaw, 10);
+      if (isNaN(mu) || mu < 0) { showToast('最大使用次数必须是非负整数', 'error'); return; }
+      payload.maxUses = mu;
+    }
+    if (expiresDaysRaw !== '') {
+      var ed = parseInt(expiresDaysRaw, 10);
+      if (isNaN(ed) || ed < 1) { showToast('有效天数必须是正整数', 'error'); return; }
+      payload.expiresAt = new Date(Date.now() + ed * 86400000).toISOString();
+    }
+    inviteAction('create', payload)
+      .then(function (data) {
+        showToast('邀请码已生成');
+        closeInviteCreateModal();
+        loadInvites();
+        if (data && data.code && data.code.code) {
+          copyText(data.code.code, function () { showToast('邀请码已复制：' + data.code.code); });
+        }
+      })
+      .catch(function (err) { if (err.message !== 'unauthorized') showToast(err.message, 'error'); });
+  });
+  $('invite-refresh-btn').addEventListener('click', loadInvites);
+
+  // ================= WebDAV 管理 =================
+  var webdavTbody = $('webdav-tbody');
+
+  function loadWebDAV() {
+    // 只读展示区：从 /api/config 获取（普通 fetch）
+    fetch('/api/config').then(function (r) { return r.json(); }).then(function (cfg) {
+      var enabled = !!cfg.webdavEnabled;
+      $('webdav-disabled-note').style.display = enabled ? 'none' : '';
+      var urlEl = $('webdav-url');
+      var copyUrlBtn = $('webdav-copy-url');
+      if (enabled && cfg.webdavUrl) {
+        urlEl.textContent = location.origin + cfg.webdavUrl;
+        copyUrlBtn.disabled = false;
+      } else {
+        urlEl.textContent = '未启用';
+        copyUrlBtn.disabled = true;
+      }
+      var badge = $('webdav-auth-badge');
+      if (!enabled) {
+        badge.textContent = '未启用';
+        badge.className = 'webdav-badge off';
+      } else if (cfg.webdavAuthRequired) {
+        badge.textContent = '需要账号密码';
+        badge.className = 'webdav-badge on';
+      } else {
+        badge.textContent = '免密访问';
+        badge.className = 'webdav-badge off';
+      }
+    }).catch(function () {
+      $('webdav-url').textContent = '加载失败';
+    });
+
+    // 访问码管理区：从 /api/manage/webdav 获取（用 api()）
+    webdavTbody.innerHTML = '<tr class="empty-row"><td colspan="4">加载中…</td></tr>';
+    api('./api/manage/webdav')
+      .then(function (r) {
+        if (r.status === 503) {
+          webdavTbody.innerHTML = '<tr class="empty-row"><td colspan="4">用户系统未启用（需要绑定 KV 命名空间）</td></tr>';
+          throw new Error('skip');
+        }
+        return r.json();
+      })
+      .then(function (data) {
+        renderWebDAVAccounts(data.accounts || []);
+      })
+      .catch(function (err) {
+        if (err && err.message !== 'unauthorized' && err.message !== 'skip') {
+          webdavTbody.innerHTML = '<tr class="empty-row"><td colspan="4">账号列表加载失败，请刷新重试</td></tr>';
+        }
+      });
+  }
+
+  function renderWebDAVAccounts(accounts) {
+    if (!accounts.length) {
+      webdavTbody.innerHTML = '<tr class="empty-row"><td colspan="4">还没有 WebDAV 账号</td></tr>';
+      return;
+    }
+    webdavTbody.textContent = '';
+    accounts.forEach(function (a) {
+      var tr = document.createElement('tr');
+
+      var tdName = document.createElement('td');
+      tdName.innerHTML = '<div class="user-name"></div>';
+      tdName.querySelector('.user-name').textContent = a.username;
+      tr.appendChild(tdName);
+
+      var tdCreated = document.createElement('td');
+      tdCreated.className = 'user-meta';
+      tdCreated.textContent = formatDateTime(a.createdAt);
+      tr.appendChild(tdCreated);
+
+      var tdStatus = document.createElement('td');
+      var badge = document.createElement('span');
+      badge.className = 'badge ' + (a.disabled ? 'badge-coral' : 'badge-teal');
+      badge.textContent = a.disabled ? '已禁用' : '正常';
+      tdStatus.appendChild(badge);
+      tr.appendChild(tdStatus);
+
+      var tdActions = document.createElement('td');
+      tdActions.className = 'cell-actions';
+
+      var resetBtn = document.createElement('button');
+      resetBtn.type = 'button';
+      resetBtn.className = 'btn btn-sm btn-secondary';
+      resetBtn.textContent = '重置密码';
+      resetBtn.addEventListener('click', function () { openWebDAVResetModal(a); });
+      tdActions.appendChild(resetBtn);
+
+      var toggleBtn = document.createElement('button');
+      toggleBtn.type = 'button';
+      toggleBtn.className = 'btn btn-sm ' + (a.disabled ? 'btn-secondary' : '');
+      toggleBtn.textContent = a.disabled ? '启用' : '禁用';
+      toggleBtn.addEventListener('click', function () { webdavToggle(a); });
+      tdActions.appendChild(toggleBtn);
+
+      var delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'btn btn-sm btn-danger';
+      delBtn.textContent = '删除';
+      delBtn.addEventListener('click', function () { webdavDelete(a); });
+      tdActions.appendChild(delBtn);
+
+      tr.appendChild(tdActions);
+      webdavTbody.appendChild(tr);
+    });
+  }
+
+  function webdavAction(action, payload) {
+    return api('./api/manage/webdav/' + action, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    }).then(function (r) {
+      return r.json().then(function (data) {
+        if (!r.ok) throw new Error(data.message || '操作失败');
+        return data;
+      });
+    });
+  }
+
+  function webdavToggle(a) {
+    var action = a.disabled ? 'enable' : 'disable';
+    if (!a.disabled && !confirm('确认禁用 WebDAV 账号「' + a.username + '」？禁用后该账号将无法连接 WebDAV。')) return;
+    webdavAction(action, { username: a.username })
+      .then(function () {
+        showToast(a.disabled ? '已启用该账号' : '已禁用该账号');
+        loadWebDAV();
+      })
+      .catch(function (err) { if (err.message !== 'unauthorized') showToast(err.message, 'error'); });
+  }
+
+  function webdavDelete(a) {
+    if (!confirm('确认删除 WebDAV 账号「' + a.username + '」？此操作不可恢复。')) return;
+    webdavAction('delete', { username: a.username })
+      .then(function () {
+        showToast('账号已删除');
+        loadWebDAV();
+      })
+      .catch(function (err) { if (err.message !== 'unauthorized') showToast(err.message, 'error'); });
+  }
+
+  // 新建账号模态
+  function openWebDAVCreateModal() {
+    $('webdav-new-username').value = '';
+    $('webdav-new-password').value = '';
+    $('modal-webdav-create').classList.add('show');
+    setTimeout(function () { $('webdav-new-username').focus(); }, 100);
+  }
+  function closeWebDAVCreateModal() {
+    $('modal-webdav-create').classList.remove('show');
+  }
+  $('webdav-create-btn').addEventListener('click', openWebDAVCreateModal);
+  $('webdav-create-cancel').addEventListener('click', closeWebDAVCreateModal);
+  $('modal-webdav-create').addEventListener('click', function (e) {
+    if (e.target === $('modal-webdav-create')) closeWebDAVCreateModal();
+  });
+  $('webdav-create-confirm').addEventListener('click', function () {
+    var username = $('webdav-new-username').value.trim();
+    var password = $('webdav-new-password').value;
+    if (!username) { showToast('用户名不能为空', 'error'); return; }
+    if (password.length < 6) { showToast('密码至少需要 6 个字符', 'error'); return; }
+    webdavAction('create', { username: username, password: password })
+      .then(function () {
+        showToast('账号已创建');
+        closeWebDAVCreateModal();
+        loadWebDAV();
+      })
+      .catch(function (err) { if (err.message !== 'unauthorized') showToast(err.message, 'error'); });
+  });
+
+  // 重置密码模态
+  var webdavResetTarget = null;
+  function openWebDAVResetModal(a) {
+    webdavResetTarget = a;
+    $('webdav-reset-username').textContent = a.username;
+    $('webdav-reset-password').value = '';
+    $('modal-webdav-reset').classList.add('show');
+    setTimeout(function () { $('webdav-reset-password').focus(); }, 100);
+  }
+  function closeWebDAVResetModal() {
+    webdavResetTarget = null;
+    $('modal-webdav-reset').classList.remove('show');
+  }
+  $('webdav-reset-cancel').addEventListener('click', closeWebDAVResetModal);
+  $('modal-webdav-reset').addEventListener('click', function (e) {
+    if (e.target === $('modal-webdav-reset')) closeWebDAVResetModal();
+  });
+  $('webdav-reset-confirm').addEventListener('click', function () {
+    var pwd = $('webdav-reset-password').value;
+    if (pwd.length < 6) { showToast('密码至少需要 6 个字符', 'error'); return; }
+    var a = webdavResetTarget;
+    webdavAction('reset', { username: a.username, password: pwd })
+      .then(function () {
+        showToast('密码已重置');
+        closeWebDAVResetModal();
+      })
+      .catch(function (err) { if (err.message !== 'unauthorized') showToast(err.message, 'error'); });
+  });
+
+  $('webdav-refresh-btn').addEventListener('click', loadWebDAV);
+
+  // 复制 WebDAV URL
+  $('webdav-copy-url').addEventListener('click', function () {
+    var text = $('webdav-url').textContent;
+    if (!text || text === '未启用' || text === '加载失败') return;
+    copyText(text, function () { showToast('已复制服务器地址'); });
+  });
+
   // ================= lightbox / helpers =================
   var lightbox = $('lightbox');
   var lightboxImg = $('lightbox-img');
@@ -827,6 +1402,19 @@
     if (e.key === 'Escape') {
       lightbox.classList.remove('open');
       closeResetModal();
+      closeInviteCreateModal();
+      closeWebDAVCreateModal();
+      closeWebDAVResetModal();
+    }
+  });
+
+  // 点击模态遮罩关闭
+  ['modal-reset', 'modal-invite-create', 'modal-webdav-create', 'modal-webdav-reset'].forEach(function (id) {
+    var el = $(id);
+    if (el) {
+      el.addEventListener('click', function (e) {
+        if (e.target === el) el.classList.remove('show');
+      });
     }
   });
 

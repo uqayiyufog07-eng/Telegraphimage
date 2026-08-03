@@ -23,6 +23,7 @@
   .form-banner.show { display: block; animation: pop-in var(--dur-mid) var(--ease-pop) both; }
   .form-banner.error { background: var(--c-coral); }
   .form-banner.ok { background: var(--c-teal); }
+  .form-banner a { color: var(--c-ink); font-weight: 700; margin-left: 8px; }
   .auth-submit { width: 100%; }
   .auth-foot { margin-top: var(--sp-3); text-align: center; font-size: 14px; color: var(--c-ink-soft); }
   .auth-foot a { color: var(--c-ink); font-weight: 700; }
@@ -84,6 +85,12 @@
           <input class="input" id="reg-confirm" type="password" autocomplete="new-password" required>
           <div class="error-text">两次输入的密码不一致</div>
         </div>
+        <div class="field" id="field-reg-invite" hidden>
+          <label for="reg-invite">邀请码</label>
+          <input class="input" id="reg-invite" name="inviteCode" autocomplete="off">
+          <div class="hint">当前为邀请注册模式，请输入邀请码</div>
+          <div class="error-text"></div>
+        </div>
         <button class="btn btn-primary auth-submit" type="submit" id="reg-submit">注册并登录</button>
       </form>
 
@@ -115,6 +122,8 @@
   var tabRegister = document.getElementById('tab-register');
   var formLogin = document.getElementById('form-login');
   var formRegister = document.getElementById('form-register');
+  var inviteField = document.getElementById('field-reg-invite');
+  var inviteInput = document.getElementById('reg-invite');
 
   function showBanner(kind, text) {
     banner.className = 'form-banner show ' + kind;
@@ -197,8 +206,30 @@
     post('/api/auth/login', { username: username, password: password }, document.getElementById('login-submit'))
       .then(function (r) {
         if (r.status === 200 && r.data.ok) {
-          showBanner('ok', '登录成功，正在跳转…');
-          window.location.href = next;
+          // 登录成功后查询身份，若为管理员则在成功提示中展示「进入后台」链接
+          fetch('/api/auth/me', { credentials: 'include' })
+            .then(function (res) { return res.ok ? res.json() : null; })
+            .then(function (me) {
+              if (me && me.user && me.user.role === 'admin') {
+                banner.className = 'form-banner show ok';
+                banner.textContent = '登录成功。';
+                var adminLink = document.createElement('a');
+                adminLink.href = '/admin';
+                adminLink.textContent = '进入后台 →';
+                var nextLink = document.createElement('a');
+                nextLink.href = next;
+                nextLink.textContent = '继续';
+                banner.appendChild(adminLink);
+                banner.appendChild(nextLink);
+              } else {
+                showBanner('ok', '登录成功，正在跳转…');
+                window.location.href = next;
+              }
+            })
+            .catch(function () {
+              showBanner('ok', '登录成功，正在跳转…');
+              window.location.href = next;
+            });
         } else {
           showBanner('error', r.data.message || '登录失败，请稍后再试。');
         }
@@ -212,6 +243,7 @@
     var username = document.getElementById('reg-username').value.trim();
     var password = regPassword.value;
     var confirm = document.getElementById('reg-confirm').value;
+    var inviteVisible = !inviteField.hidden;
 
     var ok = true;
     if (!/^[a-zA-Z0-9_-]{3,32}$/.test(username)) {
@@ -225,9 +257,22 @@
       fieldError('field-reg-password', 'reg-password', '');
     }
     ok = fieldError('field-reg-confirm', 'reg-confirm', confirm === password ? '' : '两次输入的密码不一致') && ok;
+
+    var inviteCode = '';
+    if (inviteVisible) {
+      inviteCode = inviteInput.value.trim();
+      if (!inviteCode) {
+        ok = fieldError('field-reg-invite', 'reg-invite', '请输入邀请码') && ok;
+      } else {
+        fieldError('field-reg-invite', 'reg-invite', '');
+      }
+    }
     if (!ok) return;
 
-    post('/api/auth/register', { username: username, password: password }, document.getElementById('reg-submit'))
+    var payload = { username: username, password: password };
+    if (inviteVisible) payload.inviteCode = inviteCode;
+
+    post('/api/auth/register', payload, document.getElementById('reg-submit'))
       .then(function (r) {
         if (r.status === 200 && r.data.ok) {
           showBanner('ok', '注册成功，正在跳转…');
@@ -235,6 +280,10 @@
         } else if (r.data.error === 'registration_closed') {
           showBanner('error', r.data.message);
           setMode('login');
+        } else if (r.data.error === 'invite_code_required') {
+          fieldError('field-reg-invite', 'reg-invite', r.data.message || '请输入邀请码');
+        } else if (r.data.error === 'invalid_invite_code') {
+          fieldError('field-reg-invite', 'reg-invite', r.data.message || '邀请码无效');
         } else {
           showBanner('error', r.data.message || '注册失败，请稍后再试。');
         }
@@ -255,6 +304,11 @@
         return;
       }
       card.hidden = false;
+      // 邀请注册模式：显示邀请码输入框并设为必填
+      if (data.registrationMode === 'invite') {
+        inviteField.hidden = false;
+        inviteInput.required = true;
+      }
       if (!data.registrationOpen) {
         tabRegister.style.display = 'none';
         setMode('login');

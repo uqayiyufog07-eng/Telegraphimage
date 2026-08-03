@@ -3,9 +3,11 @@ import { isEmptyBinding } from './http.js';
 // 用户系统：账号、密码哈希、会话全部存放在 img_url KV 中。
 //
 // KV 键位约定：
-//   user:<username>        → { username, passHash, salt, iterations, createdAt, lastLoginAt, disabled }
+//   user:<username>        → { username, passHash, salt, iterations, createdAt, lastLoginAt, disabled, role }
 //   sess:<token>           → { username, createdAt }（带 expirationTtl，自动过期）
 //   loginfail:<username>   → 失败计数（带 expirationTtl，用于登录限流）
+//   site:settings          → { registrationMode: 'open'|'invite'|'closed', updatedAt }
+//   invite:<code>          → { code, createdAt, maxUses, usedCount, expiresAt, createdBy, disabled }
 //
 // 密码使用 PBKDF2-SHA256（WebCrypto，Workers 原生支持），随机盐，永不存明文。
 
@@ -23,16 +25,90 @@ export const PASSWORD_MAX = 128;
 const LOGIN_LOCK_THRESHOLD = 5;
 const LOGIN_LOCK_SECONDS = 600; // 连续失败 5 次锁定 10 分钟
 
+// 站点设置 & 邀请码
+export const SITE_SETTINGS_KEY = 'site:settings';
+export const INVITE_KEY_PREFIX = 'invite:';
+export const REGISTRATION_MODES = ['open', 'invite', 'closed'];
+const INVITE_CODE_LENGTH = 8;
+// 去除易混字符 0/O/1/I/L
+const INVITE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+
 // ---------- 可用性 ----------
 
 export function authAvailable(env) {
   return !isEmptyBinding(env.img_url);
 }
 
-export function registrationOpen(env) {
-  if (!authAvailable(env)) return false;
+// ---------- 站点设置 ----------
+
+function defaultRegistrationMode(env) {
   const flag = (env.AUTH_REGISTER || '').toLowerCase();
-  return flag !== 'false' && flag !== 'off' && flag !== 'closed';
+  if (flag === 'false' || flag === 'off' || flag === 'closed') return 'closed';
+  return 'open';
+}
+
+export async function getSiteSettings(env) {
+  if (!authAvailable(env)) return { registrationMode: 'closed', updatedAt: null };
+  const raw = await env.img_url.get(SITE_SETTINGS_KEY);
+  if (!raw) return { registrationMode: defaultRegistrationMode(env), updatedAt: null };
+  try {
+    const s = JSON.parse(raw);
+    if (!REGISTRATION_MODES.includes(s.registrationMode)) {
+      return { registrationMode: defaultRegistrationMode(env), updatedAt: null };
+    }
+    return { registrationMode: s.registrationMode, updatedAt: s.updatedAt || null };
+  } catch {
+    return { registrationMode: defaultRegistrationMode(env), updatedAt: null };
+  }
+}
+
+export async function setSiteSettings(env, settings) {
+  if (!authAvailable(env)) return;
+  const mode = REGISTRATION_MODES.includes(settings.registrationMode)
+    ? settings.registrationMode
+    : 'open';
+  await env.img_url.put(SITE_SETTINGS_KEY, JSON.stringify({
+    registrationMode: mode,
+    updatedAt: new Date().toISOString(),
+  }));
+}
+
+export async function getRegistrationMode(env) {
+  const s = await getSiteSettings(env);
+  return s.registrationMode;
+}
+
+// 向后兼容：registrationOpen = mode !== 'closed'
+export async function registrationOpen(env) {
+  return (await getRegistrationMode(env)) !== 'closed';
+}
+
+// ---------- 管理员角色 ----------
+
+// 注册时在 createUser 之前调用：若 KV 中无任何 user: 记录，则当前注册的是首个用户
+export async function isFirstUser(env) {
+  if (!authAvailable(env)) return false;
+  const result = await env.img_url.list({ prefix: USER_KEY_PREFIX, limit: 1 });
+  return result.keys.length === 0;
+}
+
+// env.ADMIN_USER 后备提升：若该用户存在且不是 admin，则提升
+export async function promoteAdminFromEnv(env) {
+  if (!authAvailable(env)) return;
+  const adminUser = env.ADMIN_USER;
+  if (isEmptyBinding(adminUser)) return;
+  const user = await getUser(env, adminUser);
+  if (user && user.role !== 'admin') {
+    user.role = 'admin';
+    await updateUser(env, user);
+  }
+}
+
+export async function isAdminSession(request, env) {
+  if (!authAvailable(env)) return null;
+  const session = await getSessionUser(request, env);
+  if (session && session.role === 'admin') return session;
+  return null;
 }
 
 // ---------- 校验 ----------
@@ -47,10 +123,10 @@ export function validateUsername(username) {
 
 export function validatePassword(password) {
   if (typeof password !== 'string' || password.length < PASSWORD_MIN) {
-    return `密码至少需要 ${PASSWORD_MIN} 个字符`;
+    return '密码至少需要 ' + PASSWORD_MIN + ' 个字符';
   }
   if (password.length > PASSWORD_MAX) {
-    return `密码最长 ${PASSWORD_MAX} 个字符`;
+    return '密码最长 ' + PASSWORD_MAX + ' 个字符';
   }
   return null;
 }
@@ -127,6 +203,7 @@ export async function createUser(env, username, password) {
     createdAt: new Date().toISOString(),
     lastLoginAt: null,
     disabled: false,
+    role: 'member',
   };
   await env.img_url.put(USER_KEY_PREFIX + username, JSON.stringify(record));
   return record;
@@ -154,6 +231,7 @@ export async function listUsers(env, { limit = 200, cursor } = {}) {
         createdAt: u.createdAt || null,
         lastLoginAt: u.lastLoginAt || null,
         disabled: !!u.disabled,
+        role: u.role || 'member',
       });
     } catch {
       // 跳过损坏记录
@@ -212,7 +290,13 @@ export async function getSessionUser(request, env) {
     const session = JSON.parse(raw);
     const user = await getUser(env, session.username);
     if (!user || user.disabled) return null;
-    return { username: user.username, createdAt: user.createdAt, lastLoginAt: user.lastLoginAt, token };
+    return {
+      username: user.username,
+      createdAt: user.createdAt,
+      lastLoginAt: user.lastLoginAt,
+      role: user.role || 'member',
+      token,
+    };
   } catch {
     return null;
   }
@@ -260,12 +344,12 @@ export function readSessionToken(request) {
 
 export function sessionCookieHeader(request, token) {
   const secure = new URL(request.url).protocol === 'https:';
-  return `${SESSION_COOKIE}=${encodeURIComponent(token)}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${SESSION_TTL_SECONDS}${secure ? '; Secure' : ''}`;
+  return SESSION_COOKIE + '=' + encodeURIComponent(token) + '; Path=/; HttpOnly; SameSite=Lax; Max-Age=' + SESSION_TTL_SECONDS + (secure ? '; Secure' : '');
 }
 
 export function clearSessionCookieHeader(request) {
   const secure = new URL(request.url).protocol === 'https:';
-  return `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0${secure ? '; Secure' : ''}`;
+  return SESSION_COOKIE + '=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0' + (secure ? '; Secure' : '');
 }
 
 // 展示给前端的安全用户信息（不含任何哈希材料）
@@ -275,5 +359,123 @@ export function publicUser(record) {
     username: record.username,
     createdAt: record.createdAt || null,
     lastLoginAt: record.lastLoginAt || null,
+    role: record.role || 'member',
   };
+}
+
+// ---------- 邀请码 ----------
+
+export function generateInviteCode() {
+  const bytes = crypto.getRandomValues(new Uint8Array(INVITE_CODE_LENGTH));
+  let code = '';
+  for (let i = 0; i < INVITE_CODE_LENGTH; i++) {
+    code += INVITE_ALPHABET[bytes[i] % INVITE_ALPHABET.length];
+  }
+  return code;
+}
+
+function normalizeInviteCode(code) {
+  return String(code || '').toUpperCase().trim();
+}
+
+export async function createInviteCode(env, opts) {
+  if (!authAvailable(env)) return null;
+  const maxUses = opts && opts.maxUses ? Math.max(0, Number(opts.maxUses) || 0) : 0;
+  const expiresAt = opts && opts.expiresAt ? opts.expiresAt : null;
+  const createdBy = opts && opts.createdBy ? opts.createdBy : null;
+  const code = generateInviteCode();
+  const record = {
+    code: code,
+    createdAt: new Date().toISOString(),
+    maxUses: maxUses, // 0 = 无限次
+    usedCount: 0,
+    expiresAt: expiresAt,
+    createdBy: createdBy,
+    disabled: false,
+  };
+  await env.img_url.put(INVITE_KEY_PREFIX + code, JSON.stringify(record));
+  return record;
+}
+
+export async function getInviteCode(env, code) {
+  if (!authAvailable(env)) return null;
+  const normalized = normalizeInviteCode(code);
+  if (!normalized) return null;
+  const raw = await env.img_url.get(INVITE_KEY_PREFIX + normalized);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+export async function validateInviteCode(env, code) {
+  const record = await getInviteCode(env, code);
+  if (!record) return { valid: false, reason: 'not_found', record: null };
+  if (record.disabled) return { valid: false, reason: 'disabled', record };
+  if (record.expiresAt && new Date(record.expiresAt) < new Date()) {
+    return { valid: false, reason: 'expired', record };
+  }
+  if (record.maxUses > 0 && record.usedCount >= record.maxUses) {
+    return { valid: false, reason: 'exhausted', record };
+  }
+  return { valid: true, reason: null, record };
+}
+
+export async function consumeInviteCode(env, code, username) {
+  const record = await getInviteCode(env, code);
+  if (!record) return false;
+  record.usedCount = (record.usedCount || 0) + 1;
+  record.lastUsedAt = new Date().toISOString();
+  record.lastUsedBy = username;
+  await env.img_url.put(INVITE_KEY_PREFIX + record.code, JSON.stringify(record));
+  return true;
+}
+
+export async function listInviteCodes(env, opts) {
+  if (!authAvailable(env)) return { codes: [], cursor: null, complete: true };
+  const limit = (opts && opts.limit) || 200;
+  const cursor = opts && opts.cursor;
+  const result = await env.img_url.list({ prefix: INVITE_KEY_PREFIX, limit, cursor });
+  const codes = [];
+  for (const key of result.keys) {
+    const raw = await env.img_url.get(key.name);
+    if (!raw) continue;
+    try {
+      codes.push(JSON.parse(raw));
+    } catch {
+      // 跳过损坏记录
+    }
+  }
+  codes.sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  return {
+    codes,
+    cursor: result.list_complete ? null : result.cursor,
+    complete: !!result.list_complete,
+  };
+}
+
+export async function disableInviteCode(env, code) {
+  const record = await getInviteCode(env, code);
+  if (!record) return false;
+  record.disabled = true;
+  await env.img_url.put(INVITE_KEY_PREFIX + record.code, JSON.stringify(record));
+  return true;
+}
+
+export async function enableInviteCode(env, code) {
+  const record = await getInviteCode(env, code);
+  if (!record) return false;
+  record.disabled = false;
+  await env.img_url.put(INVITE_KEY_PREFIX + record.code, JSON.stringify(record));
+  return true;
+}
+
+export async function deleteInviteCode(env, code) {
+  if (!authAvailable(env)) return false;
+  const normalized = normalizeInviteCode(code);
+  if (!normalized) return false;
+  await env.img_url.delete(INVITE_KEY_PREFIX + normalized);
+  return true;
 }

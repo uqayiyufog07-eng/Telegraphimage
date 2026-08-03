@@ -1,7 +1,7 @@
 import { jsonResponse } from '../../utils/http.js';
 import {
   authAvailable,
-  registrationOpen,
+  getRegistrationMode,
   getSessionUser,
 } from '../../utils/users.js';
 
@@ -11,15 +11,19 @@ export async function onRequestGet(context) {
   const { request, env } = context;
 
   const enabled = authAvailable(env);
+  const mode = enabled ? await getRegistrationMode(env) : 'closed';
   const session = enabled ? await getSessionUser(request, env) : null;
 
   return jsonResponse({
     authEnabled: enabled,
-    registrationOpen: registrationOpen(env),
+    registrationMode: mode,
+    registrationOpen: mode !== 'closed',
+    inviteRequired: mode === 'invite',
     user: session ? {
       username: session.username,
       createdAt: session.createdAt,
       lastLoginAt: session.lastLoginAt,
+      role: session.role,
     } : null,
   }, {
     headers: { 'Cache-Control': 'no-store' },

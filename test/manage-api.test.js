@@ -152,16 +152,18 @@ describe('manage API functions', function () {
     assert.strictEqual(await res.text(), 'Image metadata not found for ID: missing.png');
   });
 
-  it('reports whether dashboard basic auth is configured', async function () {
-    const { onRequest } = await import('../functions/api/manage/check.js');
-
-    const disabled = await onRequest(makeContext({ env: {} }));
-    assert.strictEqual(disabled.status, 200);
-    assert.strictEqual(await disabled.text(), 'Not using basic auth.');
-
-    const enabled = await onRequest(makeContext({ env: { BASIC_USER: 'admin' } }));
-    assert.strictEqual(enabled.status, 200);
-    assert.strictEqual(await enabled.text(), 'true');
+  it('returns 404 for unknown manage action on invites endpoint', async function () {
+    const { onRequestPost } = await import('../functions/api/manage/invites/[[action]].js');
+    const res = await onRequestPost(makeContext({
+      request: new Request('https://example.com/api/manage/invites/bogus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: '{}',
+      }),
+      env: { img_url: createMockKV() },
+      params: { action: ['bogus'] },
+    }));
+    assert.strictEqual(res.status, 404);
   });
 });
 
@@ -211,15 +213,44 @@ describe('manage API authentication middleware', function () {
     assert.strictEqual(await res.text(), 'ok');
   });
 
-  it('returns the dashboard disabled message when KV is not bound', async function () {
+  it('falls back to BASIC auth when KV is not bound but BASIC is configured', async function () {
     const authentication = await getAuthentication();
 
+    // KV 未绑定 + BASIC 已配置 + 无 Authorization 头 → 401 挑战
     const res = await authentication(makeContext({
       env: { BASIC_USER: 'admin', BASIC_PASS: 'secret' },
       request: new Request('https://example.com/api/manage/list'),
     }));
 
+    assert.strictEqual(res.status, 401);
+    assert.strictEqual(res.headers.get('WWW-Authenticate'), 'Basic realm="my scope", charset="UTF-8"');
+  });
+
+  it('allows open access when neither KV nor BASIC is configured', async function () {
+    const authentication = await getAuthentication();
+
+    const res = await authentication(makeContext({
+      env: {},
+      request: new Request('https://example.com/api/manage/list'),
+      next: async () => new Response('ok'),
+    }));
+
     assert.strictEqual(res.status, 200);
-    assert.strictEqual(await res.text(), 'Dashboard is disabled. Please bind a KV namespace to use this feature.');
+    assert.strictEqual(await res.text(), 'ok');
+  });
+
+  it('rejects non-admin session and falls back to BASIC', async function () {
+    const authentication = await getAuthentication();
+    const img_url = createMockKV();
+
+    // KV 已绑定但无管理员 session + 无 BASIC → dashboardDisabledResponse
+    const res = await authentication(makeContext({
+      env: { img_url },
+      request: new Request('https://example.com/api/manage/list'),
+    }));
+
+    assert.strictEqual(res.status, 200);
+    const body = await res.text();
+    assert.ok(body.includes('disabled'), 'returns dashboard disabled message');
   });
 });

@@ -293,3 +293,116 @@ describe('后台用户管理 /api/manage/users', function () {
     assert.strictEqual(res.status, 503);
   });
 });
+
+describe('注册模式与管理员角色', function () {
+  it('first registered user becomes admin, second is member', async function () {
+    const { onRequestPost: register } = await import('../functions/api/auth/register.js');
+    const { onRequestGet: me } = await import('../functions/api/auth/me.js');
+    const kv = createMockKV();
+    const env = { img_url: kv };
+
+    const first = await register(makeContext({
+      request: jsonRequest('https://example.com/api/auth/register', { username: 'founder', password: 'password123' }),
+      env,
+    }));
+    assert.strictEqual(first.status, 200);
+    const firstBody = JSON.parse(await first.text());
+    assert.strictEqual(firstBody.user.role, 'admin');
+
+    // me 也应返回 admin
+    const firstToken = cookieOf(first);
+    const firstMe = await me(makeContext({
+      request: new Request('https://example.com/api/auth/me', {
+        headers: { Cookie: `wb_session=${encodeURIComponent(firstToken)}` },
+      }),
+      env,
+    }));
+    assert.strictEqual(JSON.parse(await firstMe.text()).user.role, 'admin');
+
+    const second = await register(makeContext({
+      request: jsonRequest('https://example.com/api/auth/register', { username: 'member1', password: 'password123' }),
+      env,
+    }));
+    assert.strictEqual(second.status, 200);
+    const secondBody = JSON.parse(await second.text());
+    assert.strictEqual(secondBody.user.role, 'member');
+  });
+
+  it('closed mode rejects registration with 403', async function () {
+    const { setSiteSettings } = await import('../functions/utils/users.js');
+    const { onRequestPost: register } = await import('../functions/api/auth/register.js');
+    const kv = createMockKV();
+    const env = { img_url: kv };
+    await setSiteSettings(env, { registrationMode: 'closed' });
+
+    const res = await register(makeContext({
+      request: jsonRequest('https://example.com/api/auth/register', { username: 'alice', password: 'password123' }),
+      env,
+    }));
+    assert.strictEqual(res.status, 403);
+    assert.strictEqual(JSON.parse(await res.text()).error, 'registration_closed');
+  });
+
+  it('invite mode requires a valid invite code and consumes it', async function () {
+    const { setSiteSettings, createInviteCode, getInviteCode } = await import('../functions/utils/users.js');
+    const { onRequestPost: register } = await import('../functions/api/auth/register.js');
+    const kv = createMockKV();
+    const env = { img_url: kv };
+    await setSiteSettings(env, { registrationMode: 'invite' });
+
+    const invite = await createInviteCode(env, { maxUses: 1 });
+
+    // 无邀请码 → 400
+    const noCode = await register(makeContext({
+      request: jsonRequest('https://example.com/api/auth/register', { username: 'alice', password: 'password123' }),
+      env,
+    }));
+    assert.strictEqual(noCode.status, 400);
+    assert.strictEqual(JSON.parse(await noCode.text()).error, 'invite_code_required');
+
+    // 无效邀请码 → 400
+    const badCode = await register(makeContext({
+      request: jsonRequest('https://example.com/api/auth/register', { username: 'alice', password: 'password123', inviteCode: 'NOPE0000' }),
+      env,
+    }));
+    assert.strictEqual(badCode.status, 400);
+    assert.strictEqual(JSON.parse(await badCode.text()).error, 'invalid_invite_code');
+
+    // 有效邀请码 → 200
+    const ok = await register(makeContext({
+      request: jsonRequest('https://example.com/api/auth/register', { username: 'alice', password: 'password123', inviteCode: invite.code }),
+      env,
+    }));
+    assert.strictEqual(ok.status, 200);
+
+    // usedCount 递增
+    const updated = await getInviteCode(env, invite.code);
+    assert.strictEqual(updated.usedCount, 1);
+    assert.strictEqual(updated.lastUsedBy, 'alice');
+
+    // 用尽后注册失败
+    const exhausted = await register(makeContext({
+      request: jsonRequest('https://example.com/api/auth/register', { username: 'bob', password: 'password123', inviteCode: invite.code }),
+      env,
+    }));
+    assert.strictEqual(exhausted.status, 400);
+    assert.strictEqual(JSON.parse(await exhausted.text()).error, 'invalid_invite_code');
+  });
+
+  it('invite code is case-insensitive during registration', async function () {
+    const { setSiteSettings, createInviteCode } = await import('../functions/utils/users.js');
+    const { onRequestPost: register } = await import('../functions/api/auth/register.js');
+    const kv = createMockKV();
+    const env = { img_url: kv };
+    await setSiteSettings(env, { registrationMode: 'invite' });
+
+    const invite = await createInviteCode(env, {});
+    const lowerCode = invite.code.toLowerCase();
+
+    const res = await register(makeContext({
+      request: jsonRequest('https://example.com/api/auth/register', { username: 'alice', password: 'password123', inviteCode: lowerCode }),
+      env,
+    }));
+    assert.strictEqual(res.status, 200);
+  });
+});
