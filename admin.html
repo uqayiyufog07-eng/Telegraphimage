@@ -487,7 +487,11 @@
       .then(function (data) {
         if (data && data.user && data.user.role === 'admin') {
           showPanel();
+        } else if (data && data.user) {
+          // 已登录但非管理员：显示拒绝视图（避免与 /auth 互相跳转形成死循环）
+          showAccessDenied();
         } else {
+          // 未登录：跳转登录
           window.location.href = '/auth?next=/admin';
         }
       })

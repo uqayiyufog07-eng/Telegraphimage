@@ -111,6 +111,26 @@ export async function isAdminSession(request, env) {
   return null;
 }
 
+// 迁移：旧账号记录可能没有 role 字段。若当前用户无 role 且是唯一用户，则提升为 admin。
+// 在 me.js 调用，确保旧部署升级后首个用户不会丢失后台访问权限。
+export async function ensureLegacyAdmin(env, username) {
+  if (!authAvailable(env) || !username) return null;
+  const user = await getUser(env, username);
+  if (!user) return null;
+  if (user.role === 'admin') return user;
+  // 无 role 字段（旧账号）或 role 为 member：检查是否是首个用户
+  if (!user.role) {
+    const result = await env.img_url.list({ prefix: USER_KEY_PREFIX, limit: 2 });
+    // 仅当 KV 中只有这一个用户时才提升
+    if (result.keys.length === 1) {
+      user.role = 'admin';
+      await updateUser(env, user);
+      return user;
+    }
+  }
+  return null;
+}
+
 // ---------- 校验 ----------
 
 export function validateUsername(username) {
