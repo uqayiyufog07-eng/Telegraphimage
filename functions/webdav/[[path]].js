@@ -24,7 +24,7 @@ export async function onRequest(context) {
   const { request, env } = context;
 
   // 鉴权
-  const authFail = authenticateWebDAV(request, env);
+  const authFail = await authenticateWebDAV(request, env);
   if (authFail) return authFail;
 
   // 检查 R2 绑定
@@ -252,6 +252,9 @@ async function handlePut(context) {
     return new Response('Cannot PUT to a directory path; use MKCOL', { status: 405 });
   }
 
+  // 检查目标是否已存在（决定 201 新建 / 204 覆盖）
+  const exists = await env.img_r2.head(fileKey);
+
   const contentType = request.headers.get('Content-Type') || 'application/octet-stream';
   const body = request.body;
 
@@ -259,7 +262,7 @@ async function handlePut(context) {
     httpMetadata: { contentType },
   });
 
-  return new Response(null, { status: 201 });
+  return new Response(null, { status: exists ? 204 : 201 });
 }
 
 // DELETE：删除文件或文件夹
@@ -282,10 +285,15 @@ async function handleDelete(context) {
     return new Response(null, { status: 204 });
   }
 
-  // 文件夹：递归删除
+  // 文件夹：检查目录标记或子对象是否存在
+  const dirHead = await env.img_r2.head(dirPrefix);
   const objects = await listAllObjects(env.img_r2, dirPrefix, 10000);
+  if (!dirHead && objects.length === 0) {
+    return new Response('Not Found', { status: 404 });
+  }
+
   const keys = objects.map(o => o.key);
-  if (!keys.includes(dirPrefix)) keys.push(dirPrefix);
+  if (dirHead && !keys.includes(dirPrefix)) keys.push(dirPrefix);
 
   for (let i = 0; i < keys.length; i += 1000) {
     await env.img_r2.delete(keys.slice(i, i + 1000));
@@ -353,7 +361,6 @@ async function handleMove(context, isCopy) {
   const srcDirPrefix = normalizeDirPrefix(sourcePath);
 
   const srcFileHead = await env.img_r2.head(srcFileKey);
-  let isFolder = false;
 
   if (srcFileHead && !isFolderKey(srcFileKey)) {
     // 文件
@@ -373,8 +380,6 @@ async function handleMove(context, isCopy) {
       customMetadata: src.customMetadata || {},
     });
 
-    if (destHead) await env.img_r2.delete(destFileKey); // 覆盖：先写后删旧（实际 put 已覆盖）
-
     if (!isCopy) {
       await env.img_r2.delete(srcFileKey);
     }
@@ -388,7 +393,6 @@ async function handleMove(context, isCopy) {
   if (!dirHead && children.length === 0) {
     return new Response('Source not found', { status: 404 });
   }
-  isFolder = true;
 
   const destDirPrefix = normalizeDirPrefix(destPath);
   const destDirHead = await env.img_r2.head(destDirPrefix);
