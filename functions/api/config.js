@@ -1,8 +1,7 @@
 import { isEmptyBinding, jsonResponse } from '../utils/http.js';
 import { isShortUrlsEnabled } from '../utils/shortlink.js';
 import { getSetupStatus } from '../utils/setup-status.js';
-import { authAvailable, registrationOpen, getRegistrationMode } from '../utils/users.js';
-import { hasAnyWebDAVAccount, listWebDAVAccounts } from '../utils/webdav-auth.js';
+import { ownerPasswordSet } from '../utils/owner-auth.js';
 
 // Public, non-sensitive site configuration for the frontend. Any static UI can
 // read this once at startup instead of the deployment having to edit HTML.
@@ -10,29 +9,14 @@ export async function onRequestGet(context) {
     const { env } = context;
     const setup = getSetupStatus(env);
 
-    const authEnabled = authAvailable(env);
-    const regMode = authEnabled ? await getRegistrationMode(env) : 'closed';
-    const regOpen = regMode !== 'closed';
+    const ownerAuthEnabled = ownerPasswordSet(env);
 
-    // WebDAV 状态：KV 动态账号 + env 凭证
+    // WebDAV 状态：仅依赖 env 凭证（单所有者模式）
     const r2Enabled = !!env.img_r2;
-    let webdavKvCount = 0;
-    let webdavKvHasAccounts = false;
-    if (r2Enabled) {
-        try {
-            webdavKvHasAccounts = await hasAnyWebDAVAccount(env);
-            if (webdavKvHasAccounts) {
-                const accounts = await listWebDAVAccounts(env);
-                webdavKvCount = accounts.length;
-            }
-        } catch {
-            // KV 不可用时忽略
-        }
-    }
     const webdavEnvHasCreds = !isEmptyBinding(env.WEBDAV_USER) && !isEmptyBinding(env.WEBDAV_PASS);
     const basicEnvHasCreds = !isEmptyBinding(env.BASIC_USER) && !isEmptyBinding(env.BASIC_PASS);
-    const webdavAuthRequired = r2Enabled && (webdavKvHasAccounts || webdavEnvHasCreds || basicEnvHasCreds);
-    // webdavUser：仅当 env 有单一账号时暴露（向后兼容 netdisk 面板）；KV 多账号时不暴露
+    const webdavAuthRequired = r2Enabled && (webdavEnvHasCreds || basicEnvHasCreds);
+    // webdavUser：暴露当前生效的单一账号（兼容 netdisk 面板展示）
     const webdavUser = !isEmptyBinding(env.WEBDAV_USER) ? env.WEBDAV_USER : (!isEmptyBinding(env.BASIC_USER) ? env.BASIC_USER : null);
 
     return jsonResponse({
@@ -41,12 +25,8 @@ export async function onRequestGet(context) {
         backgroundImage: env.SITE_BACKGROUND || '',
         enableShortUrls: isShortUrlsEnabled(env),
         uploadRequiresAuth: !isEmptyBinding(env.UPLOAD_BASIC_USER) && !isEmptyBinding(env.UPLOAD_BASIC_PASS),
-        showAdminEntry: env.HIDE_ADMIN_ENTRY !== 'true',
-        // 用户系统（注册/登录）可用性
-        authEnabled: authEnabled,
-        registrationMode: regMode,
-        registrationOpen: regOpen,
-        inviteRequired: regMode === 'invite',
+        // 所有者鉴权（单用户）是否启用
+        ownerAuthEnabled: ownerAuthEnabled,
         // Netdisk & WebDAV availability (both require R2 binding)
         netdiskEnabled: r2Enabled,
         webdavEnabled: r2Enabled,
@@ -54,7 +34,6 @@ export async function onRequestGet(context) {
         // WebDAV auth status (expose only non-sensitive info)
         webdavAuthRequired: webdavAuthRequired,
         webdavUser: webdavUser,
-        webdavAccountCount: webdavKvCount,
         // Storage targets the frontend may offer for uploads. The default comes
         // from STORAGE_PROVIDER; availability is derived from configured bindings.
         storage: {

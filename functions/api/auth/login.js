@@ -1,27 +1,20 @@
 import { jsonResponse } from '../../utils/http.js';
 import {
-  authAvailable,
-  getUser,
-  updateUser,
-  verifyPassword,
-  createSession,
-  sessionCookieHeader,
-  publicUser,
-  getLoginLock,
-  recordLoginFailure,
-  clearLoginFailures,
-} from '../../utils/users.js';
+  ownerPasswordSet,
+  resolveOwnerPassword,
+  ownerLoginResponse,
+} from '../../utils/owner-auth.js';
 
-// 登录：POST /api/auth/login  { username, password }
-// 连续失败 5 次锁定 10 分钟（按用户名计）。
+// 所有者登录：POST /api/auth/login  { password }
+// 单密码模式，无用户名、无注册、无锁定（单所有者）。
 export async function onRequestPost(context) {
   const { request, env } = context;
 
-  if (!authAvailable(env)) {
+  if (!ownerPasswordSet(env)) {
     return jsonResponse({
-      error: 'auth_unavailable',
-      message: '用户系统未启用：需要绑定名为 img_url 的 KV 命名空间。',
-    }, { status: 503 });
+      error: 'auth_not_configured',
+      message: '未配置所有者密码（OWNER_PASSWORD 或 BASIC_PASS）。',
+    }, { status: 400 });
   }
 
   let body;
@@ -31,48 +24,24 @@ export async function onRequestPost(context) {
     return jsonResponse({ error: 'bad_request', message: '请求格式不正确。' }, { status: 400 });
   }
 
-  const username = typeof body.username === 'string' ? body.username.trim() : '';
   const password = typeof body.password === 'string' ? body.password : '';
-
-  if (!username || !password) {
-    return jsonResponse({ error: 'bad_request', message: '请输入用户名和密码。' }, { status: 400 });
+  if (!password) {
+    return jsonResponse({ error: 'bad_request', message: '请输入密码。' }, { status: 400 });
   }
 
-  const lock = await getLoginLock(env, username);
-  if (lock.locked) {
-    return jsonResponse({
-      error: 'login_locked',
-      message: '失败次数过多，账号已临时锁定，请 10 分钟后再试。',
-    }, { status: 429 });
+  const expected = resolveOwnerPassword(env);
+  if (!timingSafeEqual(password, expected)) {
+    return jsonResponse({ error: 'invalid_password', message: '密码不正确。' }, { status: 401 });
   }
 
-  const user = await getUser(env, username);
+  return ownerLoginResponse(request, env, { ok: true });
+}
 
-  // 禁用账号：明确告知，且不计入失败次数
-  if (user && user.disabled) {
-    return jsonResponse({
-      error: 'account_disabled',
-      message: '该账号已被停用，请联系管理员。',
-    }, { status: 403 });
+function timingSafeEqual(a, b) {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   }
-
-  const ok = user && await verifyPassword(password, user);
-
-  if (!ok) {
-    await recordLoginFailure(env, username);
-    return jsonResponse({
-      error: 'invalid_credentials',
-      message: '用户名或密码不正确。',
-    }, { status: 401 });
-  }
-
-  await clearLoginFailures(env, username);
-  user.lastLoginAt = new Date().toISOString();
-  await updateUser(env, user);
-
-  const token = await createSession(env, username);
-
-  return jsonResponse({ ok: true, user: publicUser(user) }, {
-    headers: { 'Set-Cookie': sessionCookieHeader(request, token) },
-  });
+  return diff === 0;
 }

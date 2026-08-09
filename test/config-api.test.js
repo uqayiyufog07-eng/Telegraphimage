@@ -17,17 +17,12 @@ describe('/api/config endpoint', function () {
       backgroundImage: '',
       enableShortUrls: false,
       uploadRequiresAuth: false,
-      showAdminEntry: true,
-      authEnabled: false,
-      registrationMode: 'closed',
-      registrationOpen: false,
-      inviteRequired: false,
+      ownerAuthEnabled: false,
       netdiskEnabled: false,
       webdavEnabled: false,
       webdavUrl: null,
       webdavAuthRequired: false,
       webdavUser: null,
-      webdavAccountCount: 0,
       storage: {
         available: [],
         default: 'telegram'
@@ -50,7 +45,6 @@ describe('/api/config endpoint', function () {
         ENABLE_SHORT_URLS: 'true',
         UPLOAD_BASIC_USER: 'user',
         UPLOAD_BASIC_PASS: 'pass',
-        HIDE_ADMIN_ENTRY: 'true',
       },
     }));
 
@@ -62,17 +56,12 @@ describe('/api/config endpoint', function () {
       backgroundImage: 'https://example.com/bg.jpg',
       enableShortUrls: true,
       uploadRequiresAuth: true,
-      showAdminEntry: false,
-      authEnabled: false,
-      registrationMode: 'closed',
-      registrationOpen: false,
-      inviteRequired: false,
+      ownerAuthEnabled: false,
       netdiskEnabled: false,
       webdavEnabled: false,
       webdavUrl: null,
       webdavAuthRequired: false,
       webdavUser: null,
-      webdavAccountCount: 0,
       storage: {
         available: [],
         default: 'telegram'
@@ -81,6 +70,26 @@ describe('/api/config endpoint', function () {
     assert.ok(setup, 'setup status is always present');
     assert.ok(Array.isArray(problems));
     assert.strictEqual(typeof ready, 'boolean');
+  });
+
+  it('ownerAuthEnabled reflects OWNER_PASSWORD / BASIC_PASS configuration', async function () {
+    const { onRequestGet } = await import('../functions/api/config.js');
+
+    const ownerSet = await onRequestGet(makeContext({
+      env: { OWNER_PASSWORD: 's3cret-pass' },
+    }));
+    const ownerBody = JSON.parse(await ownerSet.text());
+    assert.strictEqual(ownerBody.ownerAuthEnabled, true);
+
+    const basicFallback = await onRequestGet(makeContext({
+      env: { BASIC_PASS: 'basicpass' },
+    }));
+    const basicBody = JSON.parse(await basicFallback.text());
+    assert.strictEqual(basicBody.ownerAuthEnabled, true);
+
+    const disabled = await onRequestGet(makeContext({ env: {} }));
+    const disabledBody = JSON.parse(await disabled.text());
+    assert.strictEqual(disabledBody.ownerAuthEnabled, false);
   });
 
   it('reports a ready deployment with no problems', async function () {

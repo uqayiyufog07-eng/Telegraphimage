@@ -1,16 +1,16 @@
-import { basicAuthentication, basicAuthChallengeResponse, unauthorizedResponse } from '../utils/auth.js';
+import { basicAuthentication, unauthorizedResponse } from '../utils/auth.js';
 import { isEmptyBinding, jsonResponse } from '../utils/http.js';
-import { authAvailable, getSessionUser } from '../utils/users.js';
+import { ownerPasswordSet, isOwnerLoggedIn } from '../utils/owner-auth.js';
 
-// 网盘鉴权中间件。
+// 网盘鉴权中间件（所有者单用户模式）。
 // - /netdisk 页面：无需 img_r2 检查（让前端展示配置提示）
 // - /netdisk/api/*：强依赖 img_r2，未绑定返回 503
 //
-// 访问优先级（当配置了 BASIC_USER/BASIC_PASS 时）：
-//   1. 已登录的用户会话（wb_session Cookie）→ 放行，免密使用网盘
-//   2. Authorization Basic 凭证匹配        → 放行（兼容 API/WebDAV 客户端）
-//   3. 页面请求 → 跳转 /auth 登录页；API 请求 → 401 JSON（前端据此提示登录）
-//   未启用用户系统（无 img_url KV）时回退为浏览器 BASIC 弹窗。
+// 通过条件（任一）：
+//   1. 鉴权未配置（OWNER_PASSWORD/BASIC_PASS 均空）→ 公开（向后兼容）
+//   2. 有效 wb_owner 签名 Cookie（Web 登录态）
+//   3. 有效 HTTP Basic（BASIC_USER/BASIC_PASS，兼容 API/WebDAV 客户端）
+//   否则：API → 401 JSON；页面 → 302 /auth?next=...
 async function errorHandling(context) {
   try {
     return await context.next();
@@ -33,18 +33,14 @@ async function authentication(context) {
     );
   }
 
-  // 未配置访问控制：公开访问
-  if (isEmptyBinding(env.BASIC_USER)) {
+  // 鉴权未配置：公开访问（向后兼容）
+  if (!ownerPasswordSet(env)) {
     return context.next();
   }
 
-  // 1. 用户会话
-  if (authAvailable(env)) {
-    const session = await getSessionUser(request, env);
-    if (session) {
-      context.data.user = session;
-      return context.next();
-    }
+  // 1. 所有者 Cookie
+  if (await isOwnerLoggedIn(request, env)) {
+    return context.next();
   }
 
   // 2. Basic 凭证（API 客户端 / WebDAV 场景）
@@ -53,7 +49,7 @@ async function authentication(context) {
     if (credentials instanceof Response) {
       return credentials;
     }
-    if (env.BASIC_USER === credentials.user && env.BASIC_PASS === credentials.pass) {
+    if (!isEmptyBinding(env.BASIC_USER) && env.BASIC_USER === credentials.user && env.BASIC_PASS === credentials.pass) {
       return context.next();
     }
     return unauthorizedResponse('Invalid credentials.');
@@ -67,12 +63,8 @@ async function authentication(context) {
     );
   }
 
-  if (authAvailable(env)) {
-    const next = encodeURIComponent(url.pathname + url.search);
-    return Response.redirect(`${url.origin}/auth?next=${next}`, 302);
-  }
-
-  return basicAuthChallengeResponse();
+  const next = encodeURIComponent(url.pathname + url.search);
+  return Response.redirect(`${url.origin}/auth?next=${next}`, 302);
 }
 
 export const onRequest = [errorHandling, authentication];

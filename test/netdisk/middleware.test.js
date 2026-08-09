@@ -54,15 +54,6 @@ describe('netdisk 中间件', function () {
     assert.ok(pageRes.headers.get('Location').startsWith('https://example.com/auth?next='));
   });
 
-  it('无用户系统时回退为 BASIC 弹窗', async function () {
-    const res = await run(makeContext({
-      request: new Request('https://example.com/netdisk/'),
-      env: { img_r2: {}, BASIC_USER: 'admin', BASIC_PASS: 'pass' },
-    }));
-    assert.strictEqual(res.status, 401);
-    assert.ok(res.headers.get('WWW-Authenticate'));
-  });
-
   it('Basic 凭证正确时放行，错误时 401', async function () {
     const env = { img_r2: {}, BASIC_USER: 'admin', BASIC_PASS: 'pass' };
 
@@ -83,25 +74,26 @@ describe('netdisk 中间件', function () {
     assert.strictEqual(bad.status, 401);
   });
 
-  it('登录用户的会话 Cookie 可免密访问', async function () {
-    const kv = createMockKV();
-    const env = { img_r2: {}, img_url: kv, BASIC_USER: 'admin', BASIC_PASS: 'pass' };
+  it('所有者登录 Cookie 可免密访问', async function () {
+    const env = { img_r2: {}, OWNER_PASSWORD: 's3cret-pass' };
 
-    // 注册一个用户拿到会话
-    const { onRequestPost: register } = await import('../../functions/api/auth/register.js');
-    const reg = await register(makeContext({
-      request: new Request('https://example.com/api/auth/register', {
+    // 所有者登录拿 wb_owner Cookie
+    const { onRequestPost: login } = await import('../../functions/api/auth/login.js');
+    const loginRes = await login(makeContext({
+      request: new Request('https://example.com/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username: 'alice', password: 'password123' }),
+        body: JSON.stringify({ password: 's3cret-pass' }),
       }),
       env,
     }));
-    const token = (reg.headers.get('Set-Cookie') || '').match(/wb_session=([^;]*)/)[1];
+    assert.strictEqual(loginRes.status, 200);
+    const setCookie = loginRes.headers.get('Set-Cookie') || '';
+    const cookieValue = setCookie.match(/wb_owner=([^;]*)/)[1];
 
     const res = await run(makeContext({
       request: new Request('https://example.com/netdisk/', {
-        headers: { Cookie: `wb_session=${token}` },
+        headers: { Cookie: `wb_owner=${cookieValue}` },
       }),
       env,
     }));

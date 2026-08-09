@@ -1,7 +1,7 @@
-/* 全站共享的用户入口组件。
+/* 全站共享的所有者入口组件。
  * 用法：在 topbar 中放置 <span data-user-chip></span>，并引入本脚本（defer）。
- * 脚本会请求 /api/auth/me，按登录状态渲染「登录/注册」按钮或用户菜单。
- * 用户系统未启用（无 KV）时自动隐藏，不影响公开站点。 */
+ * 脚本会请求 /api/auth/me，按登录状态渲染「登录」按钮或所有者菜单。
+ * 鉴权未启用（未配置 OWNER_PASSWORD/BASIC_PASS）时自动隐藏，不影响公开站点。 */
 (function () {
   'use strict';
 
@@ -68,21 +68,16 @@
     chip.appendChild(login);
   }
 
-  function renderUser(chip, username, isAdmin) {
+  function renderOwner(chip) {
     chip.classList.add('user-chip');
     var btn = h('button', { class: 'btn btn-sm btn-secondary', type: 'button', 'aria-haspopup': 'true', 'aria-expanded': 'false' }, [
       icon(ICON_USER),
-      h('span', { class: 'user-chip-name', text: username })
+      h('span', { class: 'user-chip-name', text: '我的空间' })
     ]);
     var menuItems = [
-      h('a', { href: '/profile', role: 'menuitem', text: '个人中心' }),
-      h('a', { href: '/netdisk', role: 'menuitem', text: '我的网盘' })
+      h('a', { href: '/netdisk', role: 'menuitem', text: '我的网盘' }),
+      h('button', { type: 'button', role: 'menuitem', text: '退出登录' })
     ];
-    // 管理员：在菜单中增加「后台」入口
-    if (isAdmin) {
-      menuItems.push(h('a', { href: '/admin', role: 'menuitem', text: '后台' }));
-    }
-    menuItems.push(h('button', { type: 'button', role: 'menuitem', text: '退出登录' }));
     var menu = h('div', { class: 'user-chip-menu', role: 'menu' }, menuItems);
 
     btn.addEventListener('click', function (e) {
@@ -112,11 +107,10 @@
     fetch('/api/auth/me', { credentials: 'include' })
       .then(function (res) { return res.ok ? res.json() : null; })
       .then(function (data) {
-        if (!data || !data.authEnabled) return; // 用户系统未启用，保持隐藏
-        var isAdmin = data.user && data.user.role === 'admin';
+        if (!data || !data.authEnabled) return; // 鉴权未启用，保持隐藏
         chips.forEach(function (chip) {
           chip.textContent = '';
-          if (data.user) renderUser(chip, data.user.username, isAdmin);
+          if (data.loggedIn) renderOwner(chip);
           else renderGuest(chip);
         });
       })

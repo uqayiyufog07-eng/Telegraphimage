@@ -1,4 +1,5 @@
 import { authenticateUploadRequest } from "./utils/auth.js";
+import { isOwnerLoggedIn } from "./utils/owner-auth.js";
 import { jsonResponse } from "./utils/http.js";
 import { createDefaultMetadata, getMetadata, putMetadata } from "./utils/metadata.js";
 import { allocateShortId, isShortUrlsEnabled, putShortLink } from "./utils/shortlink.js";
@@ -37,9 +38,13 @@ export async function onRequestPost(context) {
     const { request, env } = context;
 
     try {
-        const authResponse = authenticateUploadRequest(request, env);
-        if (authResponse) {
-            return authResponse;
+        // 所有者通过 Web 登录态访问时跳过 UPLOAD_BASIC 校验；
+        // 否则回退到原有 Basic Auth（API 脚本场景）。
+        if (!await isOwnerLoggedIn(request, env)) {
+            const authResponse = authenticateUploadRequest(request, env);
+            if (authResponse) {
+                return authResponse;
+            }
         }
 
         const url = new URL(request.url);
