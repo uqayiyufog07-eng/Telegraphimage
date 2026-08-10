@@ -847,9 +847,18 @@ footer a:hover { background: var(--c-yellow); }
     if (historyCursor) url += '&cursor=' + encodeURIComponent(historyCursor);
     if (historyProvider) url += '&provider=' + encodeURIComponent(historyProvider);
 
-    fetch(url).then(function (res) { return res.json(); }).then(function (data) {
+    fetch(url).then(function (res) {
+      // 先检查响应是否可解析为 JSON
+      var ct = res.headers.get('Content-Type') || '';
+      if (!ct.includes('application/json')) {
+        return res.text().then(function (text) {
+          throw new Error('HTTP ' + res.status + '：' + (text.substring(0, 120) || '非 JSON 响应'));
+        });
+      }
+      return res.json();
+    }).then(function (data) {
       if (data.error) {
-        gallery.innerHTML = '<div class="gallery-empty">加载失败：' + escapeHtml(data.error) + '</div>';
+        gallery.innerHTML = '<div class="gallery-empty">加载失败：' + escapeHtml(data.error + (data.message ? ' — ' + data.message : '')) + '</div>';
         historyLoading = false;
         return;
       }
@@ -858,8 +867,8 @@ footer a:hover { background: var(--c-yellow); }
       historyComplete = data.list_complete;
       renderGallery();
       historyLoading = false;
-    }).catch(function () {
-      gallery.innerHTML = '<div class="gallery-empty">加载失败，请重试</div>';
+    }).catch(function (err) {
+      gallery.innerHTML = '<div class="gallery-empty">加载失败：' + escapeHtml(err.message || '网络错误') + '</div>';
       historyLoading = false;
     });
   }
