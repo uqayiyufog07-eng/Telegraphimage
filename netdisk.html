@@ -1410,6 +1410,7 @@ function openWebDAVPanel() {
     }).catch(() => toast('配置加载失败', 'error'));
     return;
   }
+  renderWebDAVPanel(webdavConfig);
   showModal('#modal-webdav');
 }
 
