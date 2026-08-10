@@ -245,6 +245,102 @@
 #link-output:focus { outline: 3px solid var(--c-blue); outline-offset: 1px; }
 .actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
 
+/* ---- history gallery ---- */
+.history-section {
+  width: 100%; max-width: 880px; margin: var(--sp-3) auto 0;
+}
+.history-head {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: var(--sp-2); flex-wrap: wrap; gap: 10px;
+}
+.history-head h2 {
+  font-size: 18px; display: inline-flex; align-items: center; gap: 8px;
+}
+.history-head .filter-tabs { display: inline-flex; gap: 6px; }
+.history-head .filter-tabs button {
+  border: var(--bd-thin); background: var(--c-white); color: var(--c-ink);
+  border-radius: 999px; padding: 5px 12px;
+  font-family: var(--font-head); font-size: 12px; font-weight: 700;
+  cursor: pointer; box-shadow: var(--shadow-sm);
+  transition: background var(--dur-fast);
+}
+.history-head .filter-tabs button.active { background: var(--c-yellow); }
+.history-head .btn-refresh { padding: 5px 12px; font-size: 12px; }
+
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 12px;
+}
+.gallery-item {
+  position: relative; overflow: hidden;
+  background: var(--c-white); border: var(--bd); border-radius: var(--radius);
+  box-shadow: var(--shadow-sm);
+  transition: transform var(--dur-fast) var(--ease-pop), box-shadow var(--dur-fast) var(--ease-pop);
+}
+.gallery-item:hover { transform: translate(-2px, -2px); box-shadow: var(--shadow); }
+.gallery-item .thumb-wrap {
+  width: 100%; aspect-ratio: 1; overflow: hidden;
+  background: var(--c-paper-warm); display: flex; align-items: center; justify-content: center;
+}
+.gallery-item .thumb-wrap img { width: 100%; height: 100%; object-fit: cover; }
+.gallery-item .thumb-wrap .file-icon { width: 40px; height: 40px; opacity: .4; }
+.gallery-item .info {
+  padding: 8px 10px; border-top: var(--bd-thin);
+}
+.gallery-item .fname {
+  font-family: var(--font-head); font-size: 12px; font-weight: 700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.gallery-item .fmeta {
+  font-size: 11px; color: var(--c-ink-soft); margin-top: 3px;
+  display: flex; align-items: center; gap: 4px; flex-wrap: wrap;
+}
+.gallery-item .prov-badge {
+  display: inline-block; padding: 1px 6px; border-radius: 99px;
+  font-family: var(--font-head); font-size: 10px; font-weight: 700; color: var(--c-white);
+}
+.gallery-item .prov-badge.tg { background: #0088cc; }
+.gallery-item .prov-badge.r2 { background: #f6821f; }
+.gallery-item .actions {
+  position: absolute; top: 6px; right: 6px;
+  display: flex; gap: 4px; opacity: 0; transition: opacity .15s;
+}
+.gallery-item:hover .actions { opacity: 1; }
+.gallery-item .actions .btn-icon {
+  width: 30px; height: 30px; min-height: 30px; padding: 0;
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--c-white); border: var(--bd-thin); border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-sm); cursor: pointer;
+}
+.gallery-item .actions .btn-icon:hover { background: var(--c-yellow); }
+.gallery-item .actions .btn-icon.danger:hover { background: var(--c-coral); color: var(--c-white); }
+.gallery-item .actions .btn-icon svg { width: 15px; height: 15px; }
+@media (hover: none) { .gallery-item .actions { opacity: 1; } }
+
+.gallery-empty {
+  grid-column: 1 / -1; text-align: center; padding: var(--sp-4);
+  color: var(--c-ink-soft); font-size: 14px;
+  border: var(--bd-thin); border-style: dashed; border-radius: var(--radius);
+}
+.gallery-loading { grid-column: 1 / -1; text-align: center; padding: var(--sp-3); color: var(--c-ink-soft); }
+.load-more { display: block; margin: var(--sp-2) auto 0; }
+
+/* ---- preview modal ---- */
+.preview-overlay {
+  position: fixed; inset: 0; z-index: 90; background: rgba(20,20,20,.85);
+  display: flex; align-items: center; justify-content: center; padding: var(--sp-2);
+  opacity: 0; pointer-events: none; transition: opacity var(--dur-mid) ease;
+}
+.preview-overlay.show { opacity: 1; pointer-events: auto; }
+.preview-overlay img { max-width: 90vw; max-height: 85vh; border-radius: var(--radius); }
+.preview-overlay .preview-close {
+  position: absolute; top: 16px; right: 16px;
+  width: 40px; height: 40px; border: none; border-radius: 50%;
+  background: var(--c-white); color: var(--c-ink); cursor: pointer;
+  font-size: 22px; display: flex; align-items: center; justify-content: center;
+}
+
 /* ---- footer ---- */
 footer {
   text-align: center; font-size: 13px; font-weight: 500; color: var(--c-ink-soft);
@@ -331,6 +427,27 @@ footer a:hover { background: var(--c-yellow); }
         </div>
       </div>
     </div>
+  </div>
+
+  <!-- 图床历史 -->
+  <div class="history-section">
+    <div class="history-head">
+      <h2><svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="M21 15l-5-5L5 21"/></svg>图床历史</h2>
+      <div class="filter-tabs" id="history-filter">
+        <button type="button" data-prov="" class="active">全部</button>
+        <button type="button" data-prov="telegram">TG</button>
+        <button type="button" data-prov="r2">R2</button>
+      </div>
+      <button type="button" class="btn btn-sm btn-refresh" id="history-refresh"><svg class="icon icon-sm" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 0 1 15-6.7L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-15 6.7L3 16"/><path d="M3 21v-5h5"/></svg><span>刷新</span></button>
+    </div>
+    <div class="gallery" id="gallery"></div>
+    <button type="button" class="btn btn-sm load-more" id="load-more" hidden>加载更多</button>
+  </div>
+
+  <!-- 预览模态 -->
+  <div class="preview-overlay" id="preview-overlay">
+    <button class="preview-close" id="preview-close">&times;</button>
+    <img id="preview-img" alt="">
   </div>
 
   <footer>
@@ -640,6 +757,9 @@ footer a:hover { background: var(--c-yellow); }
     item.root.appendChild(copyButton);
 
     renderOutput();
+
+    // 上传成功后刷新图床历史
+    loadHistory(false);
   }
 
   function failItem(item, file, message) {
@@ -690,6 +810,230 @@ footer a:hover { background: var(--c-yellow); }
     updateCount();
     renderOutput();
   });
+
+  // ---- history gallery ----
+  var gallery = document.getElementById('gallery');
+  var loadMoreBtn = document.getElementById('load-more');
+  var historyFilter = document.getElementById('history-filter');
+  var historyRefresh = document.getElementById('history-refresh');
+  var previewOverlay = document.getElementById('preview-overlay');
+  var previewImg = document.getElementById('preview-img');
+  var previewClose = document.getElementById('preview-close');
+
+  var historyItems = [];
+  var historyCursor = null;
+  var historyComplete = false;
+  var historyProvider = '';
+  var historyLoading = false;
+
+  var EYE_ICON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+  var TRASH_ICON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>';
+
+  var IMAGE_EXTS = /\.(jpe?g|png|gif|webp|avif|apng|bmp|svg|ico|tiff?|heic|heif|jxl)$/i;
+
+  function loadHistory(append) {
+    if (historyLoading) return;
+    historyLoading = true;
+
+    if (!append) {
+      historyItems = [];
+      historyCursor = null;
+      historyComplete = false;
+      gallery.innerHTML = '<div class="gallery-loading">加载中…</div>';
+      loadMoreBtn.hidden = true;
+    }
+
+    var url = '/api/imgbed/list?limit=100';
+    if (historyCursor) url += '&cursor=' + encodeURIComponent(historyCursor);
+    if (historyProvider) url += '&provider=' + encodeURIComponent(historyProvider);
+
+    fetch(url).then(function (res) { return res.json(); }).then(function (data) {
+      if (data.error) {
+        gallery.innerHTML = '<div class="gallery-empty">加载失败：' + escapeHtml(data.error) + '</div>';
+        historyLoading = false;
+        return;
+      }
+      historyItems = historyItems.concat(data.items || []);
+      historyCursor = data.cursor;
+      historyComplete = data.list_complete;
+      renderGallery();
+      historyLoading = false;
+    }).catch(function () {
+      gallery.innerHTML = '<div class="gallery-empty">加载失败，请重试</div>';
+      historyLoading = false;
+    });
+  }
+
+  function renderGallery() {
+    if (!historyItems.length) {
+      gallery.innerHTML = '<div class="gallery-empty">还没有上传过文件</div>';
+      loadMoreBtn.hidden = true;
+      return;
+    }
+    gallery.innerHTML = '';
+    historyItems.forEach(function (item) {
+      gallery.appendChild(createGalleryCard(item));
+    });
+    loadMoreBtn.hidden = historyComplete;
+  }
+
+  function createGalleryCard(item) {
+    var card = document.createElement('div');
+    card.className = 'gallery-item';
+    card.dataset.id = item.id;
+
+    var thumbWrap = document.createElement('div');
+    thumbWrap.className = 'thumb-wrap';
+    if (IMAGE_EXTS.test(item.fileName || item.id)) {
+      var img = document.createElement('img');
+      img.loading = 'lazy';
+      img.alt = item.fileName || '';
+      img.src = '/file/' + encodeURIComponent(item.id);
+      img.onerror = function () { thumbWrap.innerHTML = DOC_ICON; };
+      thumbWrap.appendChild(img);
+    } else {
+      thumbWrap.innerHTML = DOC_ICON;
+    }
+
+    var info = document.createElement('div');
+    info.className = 'info';
+    var fname = document.createElement('div');
+    fname.className = 'fname';
+    fname.textContent = item.fileName || item.id;
+    fname.title = item.fileName || item.id;
+    var fmeta = document.createElement('div');
+    fmeta.className = 'fmeta';
+    var provClass = item.provider === 'r2' ? 'r2' : 'tg';
+    var provLabel = item.provider === 'r2' ? 'R2' : 'TG';
+    fmeta.innerHTML = '<span class="prov-badge ' + provClass + '">' + provLabel + '</span>';
+    fmeta.appendChild(document.createTextNode(' ' + formatSize(item.fileSize) + ' · ' + formatTime(item.timeStamp)));
+    info.appendChild(fname);
+    info.appendChild(fmeta);
+
+    var actions = document.createElement('div');
+    actions.className = 'actions';
+
+    var viewBtn = document.createElement('button');
+    viewBtn.className = 'btn-icon';
+    viewBtn.title = '查看大图';
+    viewBtn.innerHTML = EYE_ICON;
+    viewBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      openPreview(item);
+    });
+    actions.appendChild(viewBtn);
+
+    var copyBtn = document.createElement('button');
+    copyBtn.className = 'btn-icon';
+    copyBtn.title = '复制链接';
+    copyBtn.innerHTML = COPY_ICON;
+    copyBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      copyText(location.origin + '/file/' + encodeURIComponent(item.id));
+    });
+    actions.appendChild(copyBtn);
+
+    var delBtn = document.createElement('button');
+    delBtn.className = 'btn-icon danger';
+    delBtn.title = '删除';
+    delBtn.innerHTML = TRASH_ICON;
+    delBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      deleteHistoryItem(item, card);
+    });
+    actions.appendChild(delBtn);
+
+    card.appendChild(thumbWrap);
+    card.appendChild(info);
+    card.appendChild(actions);
+
+    // 点击缩略图也打开预览
+    thumbWrap.style.cursor = 'pointer';
+    thumbWrap.addEventListener('click', function () { openPreview(item); });
+
+    return card;
+  }
+
+  function openPreview(item) {
+    if (!IMAGE_EXTS.test(item.fileName || item.id)) {
+      // 非图片直接在新标签打开
+      window.open('/file/' + encodeURIComponent(item.id), '_blank');
+      return;
+    }
+    previewImg.src = '/file/' + encodeURIComponent(item.id);
+    previewImg.alt = item.fileName || '';
+    previewOverlay.classList.add('show');
+  }
+
+  function closePreview() {
+    previewOverlay.classList.remove('show');
+    previewImg.src = '';
+  }
+
+  previewClose.addEventListener('click', closePreview);
+  previewOverlay.addEventListener('click', function (e) {
+    if (e.target === previewOverlay) closePreview();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && previewOverlay.classList.contains('show')) closePreview();
+  });
+
+  function deleteHistoryItem(item, card) {
+    if (!confirm('确定删除「' + (item.fileName || item.id) + '」？\n此操作不可撤销。')) return;
+    card.style.opacity = '0.5';
+    fetch('/api/imgbed/delete', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: item.id }),
+    }).then(function (res) { return res.json(); }).then(function (data) {
+      if (data.ok) {
+        card.style.transition = 'opacity .2s, transform .2s';
+        card.style.opacity = '0';
+        card.style.transform = 'scale(0.9)';
+        setTimeout(function () {
+          card.remove();
+          historyItems = historyItems.filter(function (i) { return i.id !== item.id; });
+          if (!historyItems.length) renderGallery();
+        }, 200);
+        showToast('已删除');
+      } else {
+        card.style.opacity = '';
+        showToast('删除失败：' + (data.error || '未知错误'));
+      }
+    }).catch(function () {
+      card.style.opacity = '';
+      showToast('删除失败，网络错误');
+    });
+  }
+
+  function formatTime(ts) {
+    if (!ts) return '未知';
+    var d = new Date(ts);
+    var now = new Date();
+    var diff = now - d;
+    if (diff < 60000) return '刚刚';
+    if (diff < 3600000) return Math.floor(diff / 60000) + '分钟前';
+    if (diff < 86400000) return Math.floor(diff / 3600000) + '小时前';
+    if (diff < 2592000000) return Math.floor(diff / 86400000) + '天前';
+    return (d.getMonth() + 1) + '月' + d.getDate() + '日';
+  }
+
+  // 过滤标签
+  historyFilter.addEventListener('click', function (event) {
+    var btn = event.target.closest('button[data-prov]');
+    if (!btn) return;
+    historyProvider = btn.dataset.prov;
+    historyFilter.querySelectorAll('button').forEach(function (b) {
+      b.classList.toggle('active', b === btn);
+    });
+    loadHistory(false);
+  });
+
+  historyRefresh.addEventListener('click', function () { loadHistory(false); });
+  loadMoreBtn.addEventListener('click', function () { loadHistory(true); });
+
+  // 页面加载后自动拉取一次
+  loadHistory(false);
 
   // ---- helpers ----
   function copyText(text) {
