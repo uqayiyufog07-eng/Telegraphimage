@@ -1,15 +1,13 @@
 import { jsonResponse, isEmptyBinding } from '../../utils/http.js';
-import { isDedupKey } from '../../utils/dedup.js';
-import { isShortLinkKey } from '../../utils/shortlink.js';
+import { isInternalKey } from '../../utils/kv-keys.js';
 import { r2Provider } from '../../storage/index.js';
 
 // 图床历史列表：分页列出 KV 中所有图床文件元数据。
-// KV 中还存有短链接（short:）和去重（dedup:/nddedup:）键，需过滤掉。
-const RESERVED_PREFIXES = ['short:', 'dedup:', 'nddedup:'];
-
+// KV 中还有大量内部键（short:、dedup:、nddedup:、share:、snap:、invite:、
+// sess:、user:、site:、moderation: 等），一律按 "<namespace>:" 规则过滤掉，
+// 只保留真正的图床文件（文件 id 不含冒号）。
 function isReservedKey(name) {
-  if (isDedupKey(name) || isShortLinkKey(name)) return true;
-  return RESERVED_PREFIXES.some(p => name.startsWith(p));
+  return isInternalKey(name);
 }
 
 // 旧文件可能没有 provider 字段，按 id 前缀推断：r2- 开头是 R2，否则视为 Telegram。

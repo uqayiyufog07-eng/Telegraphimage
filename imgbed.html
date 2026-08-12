@@ -826,6 +826,7 @@ footer a:hover { background: var(--c-yellow); }
   var historyComplete = false;
   var historyProvider = '';
   var historyLoading = false;
+  var historyRendered = 0;   // 已渲染到 DOM 的条数，用于增量追加
 
   var EYE_ICON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
   var TRASH_ICON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>';
@@ -844,6 +845,7 @@ footer a:hover { background: var(--c-yellow); }
       historyItems = [];
       historyCursor = null;
       historyComplete = false;
+      historyRendered = 0;
       gallery.innerHTML = '<div class="gallery-loading">加载中…</div>';
       loadMoreBtn.hidden = true;
     }
@@ -867,7 +869,12 @@ footer a:hover { background: var(--c-yellow); }
         historyLoading = false;
         return;
       }
-      historyItems = historyItems.concat(data.items || []);
+      var incoming = data.items || [];
+      // 按 id 去重，防止分页游标重叠导致重复渲染
+      var seen = {};
+      historyItems.forEach(function (i) { seen[i.id] = true; });
+      incoming = incoming.filter(function (i) { return !seen[i.id]; });
+      historyItems = historyItems.concat(incoming);
       historyCursor = data.cursor;
       historyComplete = data.list_complete;
       renderGallery();
@@ -881,13 +888,18 @@ footer a:hover { background: var(--c-yellow); }
   function renderGallery() {
     if (!historyItems.length) {
       gallery.innerHTML = '<div class="gallery-empty">还没有上传过文件</div>';
+      historyRendered = 0;
       loadMoreBtn.hidden = true;
       return;
     }
-    gallery.innerHTML = '';
-    historyItems.forEach(function (item) {
-      gallery.appendChild(createGalleryCard(item));
-    });
+    // 首次进入时清掉加载占位；之后“加载更多”只追加新增项，不复渲染已有内容
+    if (historyRendered === 0) {
+      gallery.innerHTML = '';
+    }
+    for (var i = historyRendered; i < historyItems.length; i++) {
+      gallery.appendChild(createGalleryCard(historyItems[i]));
+    }
+    historyRendered = historyItems.length;
     loadMoreBtn.hidden = historyComplete;
   }
 
@@ -1027,6 +1039,7 @@ footer a:hover { background: var(--c-yellow); }
         setTimeout(function () {
           card.remove();
           historyItems = historyItems.filter(function (i) { return i.id !== item.id; });
+          historyRendered = historyItems.length;
           if (!historyItems.length) renderGallery();
         }, 200);
         showToast('已删除');
