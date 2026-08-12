@@ -78,12 +78,33 @@ async function gate(context) {
   return Response.redirect(`${url.origin}/auth?next=${next}`, 302);
 }
 
+// CORS：允许跨域调用（如独立前端站点向图床上传文件）。
+// 单用户私有图床场景，默认允许所有来源；如需收紧，可把 '*' 改为具体来源域名。
+const CORS_ALLOW_ORIGIN = '*';
+
+function withCors(response) {
+  const headers = new Headers(response.headers);
+  headers.set('Access-Control-Allow-Origin', CORS_ALLOW_ORIGIN);
+  headers.set('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  headers.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  headers.set('Access-Control-Max-Age', '86400');
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export const onRequest = [
   async function (context) {
+    // 预检请求：放行并返回 CORS 头
+    if (context.request.method === 'OPTIONS') {
+      return withCors(new Response(null, { status: 204 }));
+    }
     try {
-      return await gate(context);
+      return withCors(await gate(context));
     } catch (err) {
-      return new Response(err.message + '\n' + (err.stack || ''), { status: 500 });
+      return withCors(new Response(err.message + '\n' + (err.stack || ''), { status: 500 }));
     }
   },
 ];
