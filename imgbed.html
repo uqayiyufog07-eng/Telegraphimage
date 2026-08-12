@@ -315,6 +315,7 @@
 }
 .gallery-item .actions .btn-icon:hover { background: var(--c-yellow); }
 .gallery-item .actions .btn-icon.danger:hover { background: var(--c-coral); color: var(--c-white); }
+.gallery-item .actions .btn-icon.liked { color: #e0245e; }
 .gallery-item .actions .btn-icon svg { width: 15px; height: 15px; }
 @media (hover: none) { .gallery-item .actions { opacity: 1; } }
 
@@ -829,6 +830,10 @@ footer a:hover { background: var(--c-yellow); }
   var EYE_ICON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
   var TRASH_ICON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>';
 
+  var HEART_ICON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+  var HEART_FILLED_ICON = '<svg class="icon" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>';
+  var RENAME_ICON = '<svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5z"/></svg>';
+
   var IMAGE_EXTS = /\.(jpe?g|png|gif|webp|avif|apng|bmp|svg|ico|tiff?|heic|heif|jxl)$/i;
 
   function loadHistory(append) {
@@ -942,6 +947,26 @@ footer a:hover { background: var(--c-yellow); }
     });
     actions.appendChild(copyBtn);
 
+    var likeBtn = document.createElement('button');
+    likeBtn.className = 'btn-icon' + (item.liked ? ' liked' : '');
+    likeBtn.title = item.liked ? '取消收藏' : '收藏';
+    likeBtn.innerHTML = item.liked ? HEART_FILLED_ICON : HEART_ICON;
+    likeBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      toggleLike(item, likeBtn);
+    });
+    actions.appendChild(likeBtn);
+
+    var renameBtn = document.createElement('button');
+    renameBtn.className = 'btn-icon';
+    renameBtn.title = '重命名';
+    renameBtn.innerHTML = RENAME_ICON;
+    renameBtn.addEventListener('click', function (e) {
+      e.stopPropagation();
+      renameHistoryItem(item, card);
+    });
+    actions.appendChild(renameBtn);
+
     var delBtn = document.createElement('button');
     delBtn.className = 'btn-icon danger';
     delBtn.title = '删除';
@@ -1012,6 +1037,54 @@ footer a:hover { background: var(--c-yellow); }
     }).catch(function () {
       card.style.opacity = '';
       showToast('删除失败，网络错误');
+    });
+  }
+
+  function toggleLike(item, btn) {
+    btn.style.pointerEvents = 'none';
+    fetch('/api/imgbed/like', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: item.id }),
+    }).then(function (res) { return res.json(); }).then(function (data) {
+      if (data.ok) {
+        item.liked = !!data.liked;
+        btn.classList.toggle('liked', item.liked);
+        btn.title = item.liked ? '取消收藏' : '收藏';
+        btn.innerHTML = item.liked ? HEART_FILLED_ICON : HEART_ICON;
+        showToast(item.liked ? '已收藏' : '已取消收藏');
+      } else {
+        showToast('操作失败：' + (data.error || '未知错误'));
+      }
+    }).catch(function () {
+      showToast('操作失败，网络错误');
+    }).finally(function () {
+      btn.style.pointerEvents = '';
+    });
+  }
+
+  function renameHistoryItem(item, card) {
+    var current = item.fileName || item.id;
+    var next = window.prompt('请输入新的文件名：', current);
+    if (next === null) return;
+    next = String(next).trim();
+    if (!next || next === current) return;
+
+    fetch('/api/imgbed/rename', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: item.id, fileName: next }),
+    }).then(function (res) { return res.json(); }).then(function (data) {
+      if (data.ok) {
+        item.fileName = data.fileName || next;
+        var fname = card.querySelector('.fname');
+        if (fname) { fname.textContent = item.fileName; fname.title = item.fileName; }
+        showToast('已重命名');
+      } else {
+        showToast('重命名失败：' + (data.error || '未知错误'));
+      }
+    }).catch(function () {
+      showToast('重命名失败，网络错误');
     });
   }
 
